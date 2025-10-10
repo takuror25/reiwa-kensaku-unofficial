@@ -21,23 +21,30 @@ input { width: 100%; padding: 8px; font-size: 1em; margin-bottom: 1em; }
 const files = [
   "talks/2025-09-03-wakkanai.html",
   "talks/2025-09-18-obihiro.html",
-  // 👆 ここに追加していく（例："talks/2025-09-25-sapporo.html",）
 ];
 
 let data = [];
 
-// 各ページを取得して Fuse 用データを作る
 Promise.all(
   files.map(async file => {
-    const res = await fetch(file);
-    const text = await res.text();
-    data.push({ title: file.split('/')[1].replace('.html',''), text, url: file });
+    try {
+      const res = await fetch(file);
+      if (!res.ok) throw new Error(`読み込み失敗: ${file}`);
+      const text = await res.text();
+      data.push({ title: file.split('/')[1].replace('.html',''), text, url: file });
+    } catch(e) {
+      console.error(e);
+    }
   })
 ).then(() => {
+  console.log("読み込み完了", data.length, "件");
+
   const fuse = new Fuse(data, {
     includeScore: true,
     keys: ['text'],
-    threshold: 0.3
+    threshold: 0.3,
+    tokenize: true,
+    minMatchCharLength: 1
   });
 
   document.getElementById('query').addEventListener('input', e => {
@@ -47,6 +54,7 @@ Promise.all(
     if (!q) return;
 
     const results = fuse.search(q);
+    console.log("検索結果", results.length);
     results.forEach(res => {
       const text = res.item.text;
       const re = new RegExp(q, 'g');
