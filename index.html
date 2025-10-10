@@ -18,65 +18,68 @@
   <input id="searchBox" type="text" placeholder="検索語を入力" oninput="search()">
   <div id="results"></div>
 
-  <script>
-    // 🔸 検索対象のテキストファイル一覧（必要に応じて追加）
-    const files = [
-      { title: "2025-09-03 稚内", url: "talks/2025-09-03-wakkanai.txt" },
-      { title: "2025-09-12 釧路", url: "talks/2025-09-06-iwamisawa.txt" }
-      // ここに新しい回を追加する（例: { title: "2025-09-20 帯広", url: "talks/2025-09-20-obihiro.txt" }）
-    ];
+<script>
+  const files = [
+    { title: "2025-09-03 稚内", url: "talks/2025-09-03-wakkanai.txt" }
+    // ここに他の回を追加
+  ];
 
-    let texts = [];
+  let texts = [];
 
-    // 🔸 全てのtxtファイルを読み込む
-    async function loadAll() {
-      const promises = files.map(async f => {
+  async function loadAll() {
+    const promises = files.map(async f => {
+      try {
         const res = await fetch(f.url);
+        if (!res.ok) throw new Error(`HTTP ${res.status} (${f.url})`);
         const text = await res.text();
         return { title: f.title, url: f.url, text };
-      });
-      texts = await Promise.all(promises);
-      console.log("Loaded", texts.length, "files");
-    }
+      } catch (err) {
+        console.error("読み込みエラー:", err);
+        return { title: f.title, url: f.url, text: "" };
+      }
+    });
+    texts = await Promise.all(promises);
+    console.log("Loaded", texts.length, "files");
+  }
 
-    // 🔸 検索処理
-    async function search() {
-      const q = document.getElementById("searchBox").value.trim();
-      const resultsDiv = document.getElementById("results");
-      resultsDiv.innerHTML = "";
-      if (!q) return;
+  async function search() {
+    const q = document.getElementById("searchBox").value.trim();
+    const resultsDiv = document.getElementById("results");
+    resultsDiv.innerHTML = "";
+    if (!q) return;
 
-      const regex = new RegExp(q, "gi");
+    const regex = new RegExp(q, "gi");
 
-      for (const item of texts) {
-        const snippets = [];
-        let match;
-        while ((match = regex.exec(item.text)) !== null) {
-          const start = Math.max(0, match.index - 30);
-          const end = Math.min(item.text.length, match.index + 30);
-          const snippet = item.text
-            .slice(start, end)
-            .replace(regex, m => `<mark>${m}</mark>`);
-          snippets.push(snippet);
-        }
-
-        if (snippets.length > 0) {
-          const div = document.createElement("div");
-          div.classList.add("result");
-          div.innerHTML = `
-            <h3><a href="${item.url}" target="_blank">${item.title}</a></h3>
-            ${snippets.map(s => `<div class="snippet">${s}</div>`).join("<br>")}
-          `;
-          resultsDiv.appendChild(div);
-        }
+    for (const item of texts) {
+      const snippets = [];
+      let match;
+      while ((match = regex.exec(item.text)) !== null) {
+        const start = Math.max(0, match.index - 30);
+        const end = Math.min(item.text.length, match.index + 30);
+        const snippet = item.text
+          .slice(start, end)
+          .replace(regex, m => `<mark>${m}</mark>`);
+        snippets.push(snippet);
       }
 
-      if (resultsDiv.innerHTML === "") {
-        resultsDiv.textContent = "該当する結果はありません。";
+      if (snippets.length > 0) {
+        const div = document.createElement("div");
+        div.classList.add("result");
+        div.innerHTML = `
+          <h3><a href="${item.url}" target="_blank">${item.title}</a></h3>
+          ${snippets.map(s => `<div class="snippet">${s}</div>`).join("<br>")}
+        `;
+        resultsDiv.appendChild(div);
       }
     }
 
-    loadAll();
-  </script>
+    if (resultsDiv.innerHTML === "") {
+      resultsDiv.textContent = "該当する結果はありません。";
+    }
+  }
+
+  loadAll();
+</script>
+  
 </body>
 </html>
