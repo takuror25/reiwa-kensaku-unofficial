@@ -1,43 +1,32 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<title>おしゃべり会 全文検索</title>
-<script src="https://cdn.jsdelivr.net/npm/fuse.js@7"></script>
-<style>
-body { font-family: sans-serif; max-width: 700px; margin: 20px auto; line-height: 1.6; }
-input { width: 100%; padding: 8px; font-size: 1em; margin-bottom: 1em; }
-.result { margin-bottom: 1.5em; border-bottom: 1px solid #ddd; padding-bottom: .5em; }
-.snippet { background: #f5f5f5; padding: .4em; border-radius: .4em; display: block; margin-top: .3em; }
-</style>
-</head>
-<body>
-
-<h1>山本太郎とおしゃべり会 全文検索</h1>
-<input type="text" id="query" placeholder="キーワードを入力（例：消費税、生活保護など）">
-<div id="results"></div>
-
 <script>
 const files = [
   "talks/2025-09-03-wakkanai.txt",
-  "talks/2025-09-18-obihiro.txt",
+  "talks/2025-09-12-kushiro.txt",
+  "talks/2025-09-18-obihiro.txt"
 ];
 
 let data = [];
 
-Promise.all(
-  files.map(async file => {
+async function loadFiles() {
+  for (const file of files) {
     try {
       const res = await fetch(file);
       if (!res.ok) throw new Error(`読み込み失敗: ${file}`);
       const text = await res.text();
-      data.push({ title: file.split('/')[1].replace('.html',''), text, url: file });
+      data.push({
+        title: file.split('/')[1].replace('.txt',''),
+        text: text,
+        url: file
+      });
     } catch(e) {
       console.error(e);
     }
-  })
-).then(() => {
-  console.log("読み込み完了", data.length, "件");
+  }
+  console.log("読み込み完了:", data.length, "件");
+}
+
+loadFiles().then(() => {
+  console.log("Fuse.js 検索準備OK");
 
   const fuse = new Fuse(data, {
     includeScore: true,
@@ -47,14 +36,17 @@ Promise.all(
     minMatchCharLength: 1
   });
 
-  document.getElementById('query').addEventListener('input', e => {
+  const input = document.getElementById('query');
+  const resultDiv = document.getElementById('results');
+
+  input.addEventListener('input', e => {
     const q = e.target.value.trim();
-    const resultDiv = document.getElementById('results');
     resultDiv.innerHTML = '';
     if (!q) return;
 
     const results = fuse.search(q);
-    console.log("検索結果", results.length);
+    console.log("検索結果:", results.length);
+
     results.forEach(res => {
       const text = res.item.text;
       const re = new RegExp(q, 'g');
@@ -75,6 +67,3 @@ Promise.all(
   });
 });
 </script>
-
-</body>
-</html>
