@@ -40,7 +40,8 @@ let data = [];
 async function loadFiles() {
   for (const file of files) {
     try {
-      const res = await fetch(file);
+      const res = await fetch("index.json");
+data = await res.json();
       if (!res.ok) throw new Error(`読み込み失敗: ${file}`);
       const text = await res.text();
       data.push({
