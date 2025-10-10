@@ -1,3 +1,30 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【非公式】れいわ街宣・おしゃべり会検索</title>
+<style>
+body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 1em; }
+a { text-decoration: none; color: #0366d6; }
+.highlight { background: yellow; }
+</style>
+</head>
+<body>
+
+<h1>【非公式】れいわ街宣・おしゃべり会検索</h1>
+
+<input id="search" type="text" placeholder="キーワード検索（例：消費税）" style="width:100%; padding:0.5em; margin-bottom:1em;">
+
+<h2>各回の一覧</h2>
+<ul id="list">
+  <li><a href="talks/2025-09-03-wakkanai.txt">2025-09-03 稚内</a></li>
+</ul>
+
+<hr>
+
+<div id="results"></div>
+
 <script>
 const files = [
   "talks/2025-09-03-wakkanai.txt",
@@ -67,3 +94,6 @@ loadFiles().then(() => {
   });
 });
 </script>
+  
+</body>
+</html>
