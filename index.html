@@ -14,13 +14,14 @@
 </head>
 <body>
   <h1>おしゃべり会 全文検索</h1>
-  <p>キーワードを入力してください（例：「消費税」「生活保護」「ハイパーインフレ」など）</p>
+  <p>キーワードを入力してください（例：消費税など）</p>
   <input id="searchBox" type="text" placeholder="検索語を入力" oninput="search()">
   <div id="results"></div>
 
 <script>
   const files = [
-    { title: "2025-09-03 稚内", url: "talks/2025-09-03-wakkanai.txt" }
+    { title: "2025-09-03 稚内", url: "talks/2025-09-03-wakkanai.txt",
+    title: "2025-09-06 岩見沢", url: "talks/2025-09-06-iwamisawa.txt"}
   ];
 
   let texts = [];
