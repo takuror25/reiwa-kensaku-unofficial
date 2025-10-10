@@ -2,93 +2,81 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>おしゃべり会アーカイブ検索</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>おしゃべり会全文検索</title>
   <style>
-    body {
-      font-family: system-ui, sans-serif;
-      max-width: 800px;
-      margin: 2em auto;
-      padding: 0 1em;
-      line-height: 1.7;
-    }
-    h1 {
-      text-align: center;
-      font-size: 1.6em;
-    }
-    input {
-      width: 100%;
-      font-size: 1em;
-      padding: 0.5em;
-      margin-top: 1em;
-      box-sizing: border-box;
-    }
-    .result-item {
-      border-bottom: 1px solid #ddd;
-      padding: 0.8em 0;
-    }
-    .result-item h3 {
-      margin: 0.2em 0;
-    }
-    mark {
-      background: yellow;
-    }
+    body { font-family: sans-serif; margin: 2em; line-height: 1.6; }
+    input { width: 100%; padding: 0.5em; margin-bottom: 1em; font-size: 1em; }
+    .result { margin-bottom: 1.5em; border-bottom: 1px solid #ddd; padding-bottom: 0.8em; }
+    .snippet { background: #f9f9f9; padding: 0.4em; border-radius: 4px; }
+    mark { background: yellow; }
   </style>
 </head>
 <body>
-
-  <h1>おしゃべり会アーカイブ検索</h1>
+  <h1>おしゃべり会 全文検索</h1>
   <p>キーワードを入力してください（例：「消費税」「生活保護」「ハイパーインフレ」など）</p>
-  <input id="search" type="text" placeholder="検索語を入力" oninput="search()">
-  <div id="result"></div>
+  <input id="searchBox" type="text" placeholder="検索語を入力" oninput="search()">
+  <div id="results"></div>
 
   <script>
-    let data = [];
+    // 🔸 検索対象のテキストファイル一覧（必要に応じて追加）
+    const files = [
+      { title: "2025-09-03 稚内", url: "talks/2025-09-03-wakkanai.txt" },
+      { title: "2025-09-12 釧路", url: "talks/2025-09-06-iwamisawa.txt" }
+      // ここに新しい回を追加する（例: { title: "2025-09-20 帯広", url: "talks/2025-09-20-obihiro.txt" }）
+    ];
 
-    async function loadData() {
-      try {
-        const res = await fetch("index.json");
-        data = await res.json();
-        console.log("Loaded", data.length, "items.");
-      } catch (e) {
-        console.error("JSONの読み込みに失敗しました:", e);
-      }
+    let texts = [];
+
+    // 🔸 全てのtxtファイルを読み込む
+    async function loadAll() {
+      const promises = files.map(async f => {
+        const res = await fetch(f.url);
+        const text = await res.text();
+        return { title: f.title, url: f.url, text };
+      });
+      texts = await Promise.all(promises);
+      console.log("Loaded", texts.length, "files");
     }
 
+    // 🔸 検索処理
     async function search() {
-      const query = document.getElementById("search").value.trim();
-      const result = document.getElementById("result");
-      result.innerHTML = "";
+      const q = document.getElementById("searchBox").value.trim();
+      const resultsDiv = document.getElementById("results");
+      resultsDiv.innerHTML = "";
+      if (!q) return;
 
-      if (!query) return;
+      const regex = new RegExp(q, "gi");
 
-      for (const item of data) {
-        const regex = new RegExp(`(.{0,30})(${query})(.{0,30})`, "gi");
+      for (const item of texts) {
+        const snippets = [];
         let match;
-        let snippets = [];
-
         while ((match = regex.exec(item.text)) !== null) {
-          snippets.push(match[1] + "<mark>" + match[2] + "</mark>" + match[3]);
+          const start = Math.max(0, match.index - 30);
+          const end = Math.min(item.text.length, match.index + 30);
+          const snippet = item.text
+            .slice(start, end)
+            .replace(regex, m => `<mark>${m}</mark>`);
+          snippets.push(snippet);
         }
 
         if (snippets.length > 0) {
           const div = document.createElement("div");
-          div.classList.add("result-item");
+          div.classList.add("result");
           div.innerHTML = `
             <h3><a href="${item.url}" target="_blank">${item.title}</a></h3>
-            <p>${snippets.join("<br>")}</p>
+            ${snippets.map(s => `<div class="snippet">${s}</div>`).join("<br>")}
           `;
-          result.appendChild(div);
+          resultsDiv.appendChild(div);
         }
       }
 
-      if (result.innerHTML === "") {
-        result.innerHTML = "<p>一致する結果はありません。</p>";
+      if (resultsDiv.innerHTML === "") {
+        resultsDiv.textContent = "該当する結果はありません。";
       }
     }
 
-    loadData();
+    loadAll();
   </script>
-
 </body>
 </html>
