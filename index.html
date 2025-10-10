@@ -2,65 +2,68 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>【非公式】れいわ街宣・おしゃべり会全文検索</title>
+<title>おしゃべり会 全文検索</title>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7"></script>
 <style>
-body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 1em; }
-a { text-decoration: none; color: #0366d6; }
-.highlight { background: yellow; }
+body { font-family: sans-serif; max-width: 700px; margin: 20px auto; line-height: 1.6; }
+input { width: 100%; padding: 8px; font-size: 1em; margin-bottom: 1em; }
+.result { margin-bottom: 1.5em; border-bottom: 1px solid #ddd; padding-bottom: .5em; }
+.snippet { background: #f5f5f5; padding: .4em; border-radius: .4em; display: block; margin-top: .3em; }
 </style>
 </head>
 <body>
 
-<h1>【非公式】れいわ街宣・おしゃべり会全文検索</h1>
-
-<input id="search" type="text" placeholder="キーワード検索（例：消費税）" style="width:100%; padding:0.5em; margin-bottom:1em;">
-
-<h2>各回の一覧</h2>
-<ul id="list">
-  <li><a href="talks/2025-09-03-wakkanai.html">2025-09-03 稚内</a></li>
-  <li><a href="talks/2025-09-06-iwamisawa.html">2025-09-06 岩見沢</a></li>
-  <li><a href="talks/2025-09-06-chitose.html">2025-10-01 千歳</a></li>
-</ul>
-
-<hr>
-
+<h1>山本太郎とおしゃべり会 全文検索</h1>
+<input type="text" id="query" placeholder="キーワードを入力（例：消費税、生活保護など）">
 <div id="results"></div>
 
 <script>
-// 各ページのメタ情報
-const pages = [
-  { title: "2025-09-03 稚内", url: "talks/2025-09-03-wakkanai.html" },
-  { title: "2025-09-06 岩見沢", url: "talks/2025-09-06-iwamisawa.html" },
-  { title: "2025-09-06 千歳", url: "talks/2025-09-06-chitose.html" }
+const files = [
+  "talks/2025-09-03-wakkanai.html",
+  "talks/2025-09-18-obihiro.html",
+  // 👆 ここに追加していく（例："talks/2025-09-25-sapporo.html",）
 ];
 
-const input = document.getElementById('search');
-const results = document.getElementById('results');
+let data = [];
 
-// 全ページを先に読み込んでメモリに保存
-const docs = [];
-Promise.all(pages.map(p => 
-  fetch(p.url).then(r => r.text()).then(t => {
-    docs.push({ title: p.title, url: p.url, text: t });
+// 各ページを取得して Fuse 用データを作る
+Promise.all(
+  files.map(async file => {
+    const res = await fetch(file);
+    const text = await res.text();
+    data.push({ title: file.split('/')[1].replace('.html',''), text, url: file });
   })
-)).then(() => {
-  console.log("All pages loaded.");
-});
+).then(() => {
+  const fuse = new Fuse(data, {
+    includeScore: true,
+    keys: ['text'],
+    threshold: 0.3
+  });
 
-input.addEventListener('input', () => {
-  const q = input.value.trim();
-  results.innerHTML = '';
-  if (!q) return;
+  document.getElementById('query').addEventListener('input', e => {
+    const q = e.target.value.trim();
+    const resultDiv = document.getElementById('results');
+    resultDiv.innerHTML = '';
+    if (!q) return;
 
-  const regex = new RegExp(q, 'gi');
-  docs.forEach(d => {
-    if (d.text.match(regex)) {
-      const snippet = d.text.replace(regex, m => `<span class="highlight">${m}</span>`).slice(0, 500) + "...";
-      const div = document.createElement('div');
-      div.innerHTML = `<h3><a href="${d.url}" target="_blank">${d.title}</a></h3><p>${snippet}</p><hr>`;
-      results.appendChild(div);
-    }
+    const results = fuse.search(q);
+    results.forEach(res => {
+      const text = res.item.text;
+      const re = new RegExp(q, 'g');
+      const matches = [...text.matchAll(re)];
+      matches.forEach(m => {
+        const i = m.index;
+        const snippet = text.slice(Math.max(0, i - 60), i + q.length + 60);
+        const safeSnippet = snippet.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        const highlighted = safeSnippet.replace(new RegExp(q,'g'), `<mark>${q}</mark>`);
+        resultDiv.innerHTML += `
+          <div class="result">
+            <strong>${res.item.title}</strong>
+            <a href="${res.item.url}" target="_blank">（全文）</a>
+            <span class="snippet">…${highlighted}…</span>
+          </div>`;
+      });
+    });
   });
 });
 </script>
