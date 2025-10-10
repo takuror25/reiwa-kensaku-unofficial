@@ -1,103 +1,94 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>【非公式】れいわ街宣・おしゃべり会検索</title>
-<style>
-body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 1em; }
-a { text-decoration: none; color: #0366d6; }
-.highlight { background: yellow; }
-</style>
+  <meta charset="UTF-8">
+  <title>おしゃべり会アーカイブ検索</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 800px;
+      margin: 2em auto;
+      padding: 0 1em;
+      line-height: 1.7;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.6em;
+    }
+    input {
+      width: 100%;
+      font-size: 1em;
+      padding: 0.5em;
+      margin-top: 1em;
+      box-sizing: border-box;
+    }
+    .result-item {
+      border-bottom: 1px solid #ddd;
+      padding: 0.8em 0;
+    }
+    .result-item h3 {
+      margin: 0.2em 0;
+    }
+    mark {
+      background: yellow;
+    }
+  </style>
 </head>
 <body>
 
-<h1>【非公式】れいわ街宣・おしゃべり会検索</h1>
+  <h1>おしゃべり会アーカイブ検索</h1>
+  <p>キーワードを入力してください（例：「消費税」「生活保護」「ハイパーインフレ」など）</p>
+  <input id="search" type="text" placeholder="検索語を入力" oninput="search()">
+  <div id="result"></div>
 
-<input id="search" type="text" placeholder="キーワード検索（例：消費税）" style="width:100%; padding:0.5em; margin-bottom:1em;">
+  <script>
+    let data = [];
 
-<h2>各回の一覧</h2>
-<ul id="list">
-  <li><a href="talks/2025-09-03-wakkanai.txt">2025-09-03 稚内</a></li>
-</ul>
-
-<hr>
-
-<div id="results"></div>
-
-
-<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
-
-<script>
-const files = [
-  "talks/2025-09-03-wakkanai.txt",
-  "talks/2025-09-06-ieamisawa.txt",
-
-];
-
-let data = [];
-
-async function loadFiles() {
-  for (const file of files) {
-    try {
-      const res = await fetch("index.json");
-data = await res.json();
-      if (!res.ok) throw new Error(`読み込み失敗: ${file}`);
-      const text = await res.text();
-      data.push({
-        title: file.split('/')[1].replace('.txt',''),
-        text: text,
-        url: file
-      });
-    } catch(e) {
-      console.error(e);
+    async function loadData() {
+      try {
+        const res = await fetch("index.json");
+        data = await res.json();
+        console.log("Loaded", data.length, "items.");
+      } catch (e) {
+        console.error("JSONの読み込みに失敗しました:", e);
+      }
     }
-  }
-  console.log("読み込み完了:", data.length, "件");
-}
 
-loadFiles().then(() => {
-  console.log("Fuse.js 検索準備OK");
+    async function search() {
+      const query = document.getElementById("search").value.trim();
+      const result = document.getElementById("result");
+      result.innerHTML = "";
 
-  const fuse = new Fuse(data, {
-    includeScore: true,
-    keys: ['text'],
-    threshold: 0.3,
-    tokenize: true,
-    minMatchCharLength: 1
-  });
+      if (!query) return;
 
-  const input = document.getElementById('query');
-  const resultDiv = document.getElementById('results');
+      for (const item of data) {
+        const regex = new RegExp(`(.{0,30})(${query})(.{0,30})`, "gi");
+        let match;
+        let snippets = [];
 
-  input.addEventListener('input', e => {
-    const q = e.target.value.trim();
-    resultDiv.innerHTML = '';
-    if (!q) return;
+        while ((match = regex.exec(item.text)) !== null) {
+          snippets.push(match[1] + "<mark>" + match[2] + "</mark>" + match[3]);
+        }
 
-    const results = fuse.search(q);
-    console.log("検索結果:", results.length);
+        if (snippets.length > 0) {
+          const div = document.createElement("div");
+          div.classList.add("result-item");
+          div.innerHTML = `
+            <h3><a href="${item.url}" target="_blank">${item.title}</a></h3>
+            <p>${snippets.join("<br>")}</p>
+          `;
+          result.appendChild(div);
+        }
+      }
 
-    results.forEach(res => {
-      const text = res.item.text;
-      const re = new RegExp(q, 'g');
-      const matches = [...text.matchAll(re)];
-      matches.forEach(m => {
-        const i = m.index;
-        const snippet = text.slice(Math.max(0, i - 60), i + q.length + 60);
-        const safeSnippet = snippet.replace(/</g,"&lt;").replace(/>/g,"&gt;");
-        const highlighted = safeSnippet.replace(new RegExp(q,'g'), `<mark>${q}</mark>`);
-        resultDiv.innerHTML += `
-          <div class="result">
-            <strong>${res.item.title}</strong>
-            <a href="${res.item.url}" target="_blank">（全文）</a>
-            <span class="snippet">…${highlighted}…</span>
-          </div>`;
-      });
-    });
-  });
-});
-</script>
-  
+      if (result.innerHTML === "") {
+        result.innerHTML = "<p>一致する結果はありません。</p>";
+      }
+    }
+
+    loadData();
+  </script>
+
 </body>
 </html>
