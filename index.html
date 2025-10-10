@@ -28,19 +28,25 @@
   let texts = [];
 
   async function loadAll() {
-    const promises = files.map(async f => {
-      try {
-        const res = await fetch(f.url);
-        if (!res.ok) throw new Error(`HTTP ${res.status} (${f.url})`);
-        const text = await res.text();
-        return { title: f.title, url: f.url, text };
-      } catch (err) {
-        console.error("読み込みエラー:", err);
-        return { title: f.title, url: f.url, text: "" };
-      }
-    });
-    texts = await Promise.all(promises);
-    console.log("Loaded", texts.length, "files");
+  const logDiv = document.createElement("div");
+  logDiv.style.background = "#eee";
+  logDiv.style.padding = "0.5em";
+  logDiv.style.marginBottom = "1em";
+  document.body.insertBefore(logDiv, document.getElementById("results"));
+
+  const promises = files.map(async f => {
+    try {
+      const res = await fetch(f.url);
+      if (!res.ok) throw new Error(`HTTP ${res.status} (${f.url})`);
+      const text = await res.text();
+      logDiv.innerHTML += `✅ 読み込み成功：${f.title}<br>`;
+      return { title: f.title, url: f.url, text };
+    } catch (err) {
+      logDiv.innerHTML += `⚠️ 読み込み失敗：${f.title}<br>${err}<br>`;
+      return { title: f.title, url: f.url, text: "" };
+    }
+  });
+  texts = await Promise.all(promises);
   }
 
   async function search() {
