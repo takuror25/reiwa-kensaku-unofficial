@@ -97,7 +97,21 @@ async function showInViewer(result, query) {
     return `<span class="highlight" data-hit="${matchCount}">${m}</span>`;
   });
 
-  viewer.innerHTML = `<h2>${result.title}</h2>` + text;
+  // YouTubeリンクをクリック可能に変換
+text = text.replace(/(https:\/\/www\.youtube\.com\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+
+// 検索語をすべてハイライト
+const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const re = new RegExp(escaped, "gi");
+let matchCount = 0;
+
+text = text.replace(re, (m) => {
+  matchCount++;
+  return `<span class="highlight" data-hit="${matchCount}">${m}</span>`;
+});
+
+// 🔹リンク化＋ハイライト済みテキストを表示
+viewer.innerHTML = `<h2>${result.title}</h2>` + text;
 
   // 該当箇所へ自動スクロール
   setTimeout(() => {
