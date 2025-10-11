@@ -75,7 +75,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
   for (const r of results) {
     const div = document.createElement("div");
     div.className = "result";
-    div.innerHTML = `<strong>${r.title}</strong>（${r.count} 回目）<br>
+    div.innerHTML = `<strong>${r.title}</strong>（${r.count} ）<br>
       ...${r.before}<span class="highlight">${r.word}</span>${r.after}...`;
     div.addEventListener("click", () => showInViewer(r, query));
     resultsDiv.appendChild(div);
