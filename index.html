@@ -3,18 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>れいわ街宣・おしゃべり会全文検索【非公式サイト】</title>
+<title>れいわ街宣・おしゃべり会全文検索ツール（非公式）</title>
 <style>
   body { font-family: sans-serif; margin: 2em; line-height: 1.6; }
   input { width: 100%; padding: 8px; font-size: 1em; }
   .result { margin: 1em 0; cursor: pointer; border-bottom: 1px solid #ccc; padding: 0.5em 0; }
   .highlight { background-color: yellow; font-weight: bold; }
   #viewer { margin-top: 2em; white-space: pre-wrap; border-top: 2px solid #666; padding-top: 1em; }
+  #note { color: #555; font-size: 0.95em; margin-top: 1em; background: #f6f6f6; padding: 0.8em; border-radius: 8px; }
 </style>
 </head>
 <body>
 
-<h1>れいわ街宣・おしゃべり会全文検索【非公式サイト】</h1>
+<h1>れいわ街宣・おしゃべり会全文検索ツール（非公式）</h1>
 <input type="text" id="search" placeholder="キーワードを入力してください">
 <div id="results"></div>
 <div id="viewer"></div>
@@ -60,6 +61,17 @@ document.getElementById("search").addEventListener("input", async (e) => {
     return;
   }
 
+  // ✅ 検索結果の上に説明文を追加
+  const note = document.createElement("div");
+  note.id = "note";
+  note.innerHTML = `
+    <strong>結果の見方：</strong><br>
+    各行には、キーワードが登場した文脈が表示されています。<br>
+    気になる箇所をタップすると、全文が読み込まれ、
+    <span class="highlight">該当部分に自動スクロール</span>します。`;
+  resultsDiv.appendChild(note);
+
+  // ✅ 結果一覧を追加
   for (const r of results) {
     const div = document.createElement("div");
     div.className = "result";
@@ -87,7 +99,7 @@ async function showInViewer(result, query) {
 
   viewer.innerHTML = `<h2>${result.title}</h2>` + text;
 
-  // 少し待ってから該当箇所までスクロール
+  // 該当箇所へ自動スクロール
   setTimeout(() => {
     const el = viewer.querySelector(`[data-hit="${result.count}"]`);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
