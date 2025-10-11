@@ -20,15 +20,32 @@
 
 <h1>2025-09-03-北海道・稚内 おしゃべり会</h1>
 
-<p><span class="y">山本太郎：皆さんこんにちは。本日は○○にお邪魔しています。</span> </p>
+<p><span class="y">00:42:14<br>山本太郎：皆さんこんにちは。本日は○○にお邪魔しています。</span> </p>
 
-<p><span class="q">質問者：消費税がなくなったら財源はどうなるのでしょうか？</span> </p>
+<p><span class="q">00:47:43<br>質問者：消費税がなくなったら財源はどうなるのでしょうか？</span> </p>
 
-<p><span class="y">山本太郎： 消費税は景気を冷やす税金です。景気を回せば自然に税収は増えます。</span> </p>
+<p><span class="y">00:48:41<br>山本太郎： 消費税は景気を冷やす税金です。景気を回せば自然に税収は増えます。</span> </p>
 
-<p><span class="r">木村英子：現場の声を国会に届けるためにも、福祉を削ってはいけません。</span> </p>
+<p><span class="r">00:53:17<br>木村英子：現場の声を国会に届けるためにも、福祉を削ってはいけません。</span> </p>
 
-<p><span class="y">山本太郎： まさにその通りです。福祉の充実は経済の基盤です。</span> </p>
+<p><span class="y">01:41:46<br>山本太郎： まさにその通りです。福祉の充実は経済の基盤です。</span> </p>
+
+<script>
+const baseURL = "https://www.youtube.com/live/3Lc0U6-RGYA"; // ← 対応する公式動画のURLに変更
+
+// タイム形式を探してリンク化（例: 01:41:18）
+document.body.innerHTML = document.body.innerHTML.replace(
+  /(\b\d{1,2}:\d{2}:\d{2}\b)/g,
+  '<a class="time-link" href="' + baseURL + '?t=$1" target="_blank">$1</a>'
+);
+
+// 時刻を秒に直して ?t=秒 の形式に修正
+document.querySelectorAll('.time-link').forEach(a => {
+  const parts = a.textContent.split(':').map(Number);
+  const seconds = parts[0]*3600 + parts[1]*60 + parts[2];
+  a.href = baseURL + '?t=' + seconds + 's';
+});
+</script>
 
 </body>
 </html>
