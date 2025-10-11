@@ -1,94 +1,99 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>おしゃべり会全文検索</title>
-  <style>
-    body { font-family: sans-serif; margin: 2em; line-height: 1.6; }
-    input { width: 100%; padding: 0.5em; margin-bottom: 1em; font-size: 1em; }
-    .result { margin-bottom: 1.5em; border-bottom: 1px solid #ddd; padding-bottom: 0.8em; }
-    .snippet { background: #f9f9f9; padding: 0.4em; border-radius: 4px; }
-    mark { background: yellow; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>れいわ街宣・おしゃべり会全文検索【非公式サイト】</title>
+<style>
+  body { font-family: sans-serif; margin: 2em; line-height: 1.6; }
+  input { width: 100%; padding: 8px; font-size: 1em; }
+  .result { margin: 1em 0; cursor: pointer; border-bottom: 1px solid #ccc; padding: 0.5em 0; }
+  .highlight { background-color: yellow; font-weight: bold; }
+  #viewer { margin-top: 2em; white-space: pre-wrap; border-top: 2px solid #666; padding-top: 1em; }
+</style>
 </head>
 <body>
-  <h1>おしゃべり会 全文検索</h1>
-  <p>キーワードを入力してください（例：消費税など）</p>
-  <input id="searchBox" type="text" placeholder="検索語を入力" oninput="search()">
-  <div id="results"></div>
+
+<h1>れいわ街宣・おしゃべり会全文検索【非公式サイト】</h1>
+<input type="text" id="search" placeholder="キーワードを入力してください">
+<div id="results"></div>
+<div id="viewer"></div>
 
 <script>
-  const files = [
-    { title: "2025-09-03 稚内", url: "talks/2025-09-03-wakkanai.txt"},
-    { title: "2025-09-06 岩見沢", url: "talks/2025-09-06-iwamisawa.txt"}
-  ];
+const files = [
+  { title: "2025-09-03 稚内", url: "talks/2025-09-03-wakkanai.txt" },
+  { title: "2025-09-06 岩見沢", url: "talks/2025-09-06-iwamisawa.txt" }
+];
 
-  let texts = [];
+document.getElementById("search").addEventListener("input", async (e) => {
+  const query = e.target.value.trim();
+  const resultsDiv = document.getElementById("results");
+  resultsDiv.innerHTML = "";
 
-  async function loadAll() {
-    const logDiv = document.createElement("div");
-    logDiv.style.background = "#eee";
-    logDiv.style.padding = "0.5em";
-    logDiv.style.marginBottom = "1em";
-    document.body.insertBefore(logDiv, document.getElementById("results"));
+  if (!query) return;
 
-    const promises = files.map(async f => {
-      try {
-        const res = await fetch(f.url);
-        if (!res.ok) throw new Error(`HTTP ${res.status} (${f.url})`);
-        const text = await res.text();
-        logDiv.innerHTML += `✅ 読み込み成功：${f.title}<br>`;
-        return { title: f.title, url: f.url, text };
-      } catch (err) {
-        logDiv.innerHTML += `⚠️ 読み込み失敗：${f.title}<br>${err}<br>`;
-        return { title: f.title, url: f.url, text: "" };
-      }
-    });
-    texts = await Promise.all(promises);
-  }
+  const results = [];
 
-  async function search() {
-    const q = document.getElementById("searchBox").value.trim();
-    const resultsDiv = document.getElementById("results");
-    resultsDiv.innerHTML = "";
-    if (!q) return;
+  for (const f of files) {
+    const res = await fetch(f.url);
+    const text = await res.text();
 
-    const lowerQ = q.toLowerCase();
-
-    for (const item of texts) {
-      const snippets = [];
-      const lowerText = item.text.toLowerCase();
-
-      let index = 0;
-      while ((index = lowerText.indexOf(lowerQ, index)) !== -1) {
-        const start = Math.max(0, index - 30);
-        const end = Math.min(item.text.length, index + q.length + 30);
-        const snippet = item.text
-          .slice(start, end)
-          .replace(new RegExp(q, "gi"), m => `<mark>${m}</mark>`);
-        snippets.push(snippet);
-        index += q.length;
-      }
-
-      if (snippets.length > 0) {
-        const div = document.createElement("div");
-        div.classList.add("result");
-        div.innerHTML = `
-          <h3><a href="${item.url}" target="_blank">${item.title}</a></h3>
-          ${snippets.map(s => `<div class="snippet">${s}</div>`).join("<br>")}
-        `;
-        resultsDiv.appendChild(div);
-      }
-    }
-
-    if (resultsDiv.innerHTML === "") {
-      resultsDiv.textContent = "該当する結果はありません。";
+    const regex = new RegExp(`(.{0,40})(${query})(.{0,40})`, "gi");
+    let match;
+    let matchIndex = 0;
+    while ((match = regex.exec(text)) !== null) {
+      matchIndex++;
+      results.push({
+        title: f.title,
+        url: f.url,
+        before: match[1],
+        word: match[2],
+        after: match[3],
+        index: match.index,
+        count: matchIndex
+      });
     }
   }
 
-  loadAll();
+  if (results.length === 0) {
+    resultsDiv.innerHTML = "<p>一致する結果はありません。</p>";
+    return;
+  }
+
+  for (const r of results) {
+    const div = document.createElement("div");
+    div.className = "result";
+    div.innerHTML = `<strong>${r.title}</strong>（${r.count} 回目）<br>
+      ...${r.before}<span class="highlight">${r.word}</span>${r.after}...`;
+    div.addEventListener("click", () => showInViewer(r, query));
+    resultsDiv.appendChild(div);
+  }
+});
+
+async function showInViewer(result, query) {
+  const viewer = document.getElementById("viewer");
+  const res = await fetch(result.url);
+  let text = await res.text();
+
+  // 検索語をすべてハイライト
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(escaped, "gi");
+  let matchCount = 0;
+
+  text = text.replace(re, (m) => {
+    matchCount++;
+    return `<span class="highlight" data-hit="${matchCount}">${m}</span>`;
+  });
+
+  viewer.innerHTML = `<h2>${result.title}</h2>` + text;
+
+  // 少し待ってから該当箇所までスクロール
+  setTimeout(() => {
+    const el = viewer.querySelector(`[data-hit="${result.count}"]`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 300);
+}
 </script>
-  
+
 </body>
 </html>
