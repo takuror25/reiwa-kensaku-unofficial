@@ -87,11 +87,11 @@ async function showInViewer(result, query) {
   const res = await fetch(result.url);
   const raw = await res.text();
 
-  // 1) HTMLエスケープ（元データは素のtxtなので一応）
+  // 1) HTMLエスケープ（安全のため）
   const escapeHtml = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   let text = escapeHtml(raw);
 
-  // 2) YouTubeリンクをクリック可能に（短縮URL/末尾の ) ] など除外）
+  // 2) YouTubeリンクをクリック可能に変換（短縮URLも対応）
   text = text.replace(
     /(https:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^\s<>)\]]+)/g,
     '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
@@ -105,10 +105,10 @@ async function showInViewer(result, query) {
     text = text.replace(re, m => `<span class="highlight" data-hit="${++i}">${m}</span>`);
   }
 
-  // 4) 描画
+  // 4) 表示
   viewer.innerHTML = `<h2>${result.title}</h2>${text}`;
 
-  // 5) 自動スクロール
+  // 5) 該当箇所へ自動スクロール
   setTimeout(() => {
     const el = viewer.querySelector(`[data-hit="${result.count}"]`);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
