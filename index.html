@@ -85,39 +85,34 @@ document.getElementById("search").addEventListener("input", async (e) => {
 async function showInViewer(result, query) {
   const viewer = document.getElementById("viewer");
   const res = await fetch(result.url);
-  let text = await res.text();
+  const raw = await res.text();
 
-  // 検索語をすべてハイライト
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(escaped, "gi");
-  let matchCount = 0;
+  // 1) HTMLエスケープ（元データは素のtxtなので一応）
+  const escapeHtml = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  let text = escapeHtml(raw);
 
-  text = text.replace(re, (m) => {
-    matchCount++;
-    return `<span class="highlight" data-hit="${matchCount}">${m}</span>`;
-  });
+  // 2) YouTubeリンクをクリック可能に（短縮URL/末尾の ) ] など除外）
+  text = text.replace(
+    /(https:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^\s<>)\]]+)/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+  );
 
-  // YouTubeリンクをクリック可能に変換
-text = text.replace(/(https:\/\/www\.youtube\.com\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+  // 3) 検索語をハイライト
+  if (query) {
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(escaped, 'gi');
+    let i = 0;
+    text = text.replace(re, m => `<span class="highlight" data-hit="${++i}">${m}</span>`);
+  }
 
-// 検索語をすべてハイライト
-const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const re = new RegExp(escaped, "gi");
-let matchCount = 0;
+  // 4) 描画
+  viewer.innerHTML = `<h2>${result.title}</h2>${text}`;
 
-text = text.replace(re, (m) => {
-  matchCount++;
-  return `<span class="highlight" data-hit="${matchCount}">${m}</span>`;
-});
-
-// 🔹リンク化＋ハイライト済みテキストを表示
-viewer.innerHTML = `<h2>${result.title}</h2>` + text;
-
-  // 該当箇所へ自動スクロール
+  // 5) 自動スクロール
   setTimeout(() => {
     const el = viewer.querySelector(`[data-hit="${result.count}"]`);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, 300);
+  }, 100);
 }
 </script>
 
