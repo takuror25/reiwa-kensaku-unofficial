@@ -6,8 +6,6 @@
 <title>れいわ街宣・おしゃべり会全文検索ツール（非公式）</title>
 <style>
   body { font-family: sans-serif; margin: 2em; line-height: 1.6; }
-
-  /* 👇 これを追加または置き換え */
   input#search {
     width: 100%;
     padding: 14px 16px;
@@ -18,17 +16,14 @@
     outline: none;
     transition: all 0.2s ease;
   }
-
   input#search:focus {
     border-color: #007bff;
     box-shadow: 0 0 5px rgba(0, 123, 255, 0.4);
   }
-
   .result { margin: 1em 0; cursor: pointer; border-bottom: 1px solid #ccc; padding: 0.5em 0; }
   .highlight { background-color: yellow; font-weight: bold; }
   #viewer { margin-top: 2em; white-space: pre-wrap; border-top: 2px solid #666; padding-top: 1em; }
   #note { color: #555; font-size: 0.95em; margin-top: 1em; background: #f6f6f6; padding: 0.8em; border-radius: 8px; }
-</style>
 </style>
 </head>
 <body>
@@ -41,11 +36,81 @@
 <!-- ✅ まずここで files.js を読み込む -->
 <script src="data/files.js"></script>
 
-<!-- ✅ その下で検索ロジックを読み込む -->
 <script>
 document.getElementById("search").addEventListener("input", async (e) => {
-  // ここは今まで通りのコード
+  const query = e.target.value.trim();
+  const resultsDiv = document.getElementById("results");
+  resultsDiv.innerHTML = "";
+
+  if (!query) return;
+
+  const results = [];
+
+  // ✅ files.js に定義された配列を使う
+  for (const f of files) {
+    const res = await fetch(f.url);
+    const text = await res.text();
+
+    const regex = new RegExp(`(.{0,40})(${query})(.{0,40})`, "gi");
+    let match;
+    let matchIndex = 0;
+    while ((match = regex.exec(text)) !== null) {
+      matchIndex++;
+      results.push({
+        title: f.title,
+        url: f.url,
+        video: f.video,
+        before: match[1],
+        word: match[2],
+        after: match[3],
+        index: match.index,
+        count: matchIndex
+      });
+    }
+  }
+
+  if (results.length === 0) {
+    resultsDiv.innerHTML = "<p>一致する結果はありません。</p>";
+    return;
+  }
+
+  const note = document.createElement("div");
+  note.id = "note";
+  note.innerHTML = `
+    <strong>結果の見方：</strong><br>
+    各行には、キーワードが登場した文脈が表示されています。<br>
+    気になる箇所をタップすると、全文が読み込まれます。`;
+  resultsDiv.appendChild(note);
+
+  for (const r of results) {
+    const div = document.createElement("div");
+    div.className = "result";
+    div.innerHTML = `<strong>${r.title}</strong><br>
+      ...${r.before}<span class="highlight">${r.word}</span>${r.after}...`;
+    div.addEventListener("click", () => showInViewer(r, query));
+    resultsDiv.appendChild(div);
+  }
 });
+
+async function showInViewer(result, query) {
+  const viewer = document.getElementById("viewer");
+  const res = await fetch(result.url);
+  const raw = await res.text();
+
+  const escapeHtml = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  let text = escapeHtml(raw);
+
+  text = text.replace(/(https:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^\s<>)\]]+)/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  if (query) {
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(escaped, 'gi');
+    text = text.replace(re, m => `<span class="highlight">${m}</span>`);
+  }
+
+  viewer.innerHTML = `<h2>${result.title}</h2>` + text;
+}
 </script>
 
 </body>
