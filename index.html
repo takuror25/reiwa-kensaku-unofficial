@@ -99,9 +99,18 @@ async function showInViewer(result, query) {
   const doc = parser.parseFromString(await res.text(), "text/html");
   let text = doc.body.innerHTML;
 
-  text = text.replace(/(\d{2}:\d{2}:\d{2})/g,
-    (match) => `<span class="time" data-time="${match}">${match}</span>`);
+// タイム部分にリンク機能を追加（既存のHTMLを壊さない）
+text = text.replace(
+  /(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
+  '<span class="time" data-time="$1">$1</span>'
+);
 
+// 検索語のハイライトもHTMLタグを壊さないように
+if (query) {
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(${escaped})(?![^<]*>)`, 'gi');
+  text = text.replace(re, '<span class="highlight">$1</span>');
+}
   if (query) {
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const re = new RegExp(escaped, 'gi');
