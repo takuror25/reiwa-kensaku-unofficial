@@ -133,13 +133,13 @@ async function showInViewer(result, query) {
       background-color: yellow;
       font-weight: bold;
     }
-
- #popupPlayer {
+    #popupPlayer {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 360px;
-  height: 203px;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50vw;          /* スマホで画面横幅の50% */
+  aspect-ratio: 16 / 9; /* 高さを自動計算して16:9に保つ */
   background: #000;
   border-radius: 10px;
   overflow: hidden;
@@ -151,75 +151,71 @@ async function showInViewer(result, query) {
   transition: transform 0.2s ease;
 }
 
-/* 📱 スマホ時に2倍サイズ（画面幅の95%、高さは半分） */
+/* 📱 スマホではこの設定を優先 */
 @media (max-width: 768px) {
   #popupPlayer {
-    width: 95vw;
-    height: 45vh;
-    left: 2.5vw;
-    right: auto;
-    bottom: 10px;
+    width: 50vw;        /* スマホで画面の半分の横幅 */
+    aspect-ratio: 16 / 9;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
   }
 }
-   
-    #popupPlayer.hidden { display: none; }
-    #popupPlayer iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-    /* ✋ ドラッグハンドル */
-    #dragHandle {
-      width: 100%;
-      height: 40px;
-      background: linear-gradient(to bottom, #bbb, #999);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-top-left-radius: 10px;
-      border-top-right-radius: 10px;
-      cursor: grab;
-      box-shadow: inset 0 -2px 3px rgba(0,0,0,0.2);
-    }
-    #dragHandle:active {
-      cursor: grabbing;
-      background: linear-gradient(to bottom, #999, #777);
-    }
-    .grip {
-      width: 60px;
-      height: 6px;
-      background: #666;
-      border-radius: 3px;
-    }
-    /* ❌ 閉じるボタン */
-    #closePlayer {
-      background: #e53935;
-      color: white;
-      border: none;
-      font-size: 2em;
-      font-weight: bold;
-      width: 50px;
-      height: 50px;
-      cursor: pointer;
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      border-radius: 50%;
-      z-index: 3;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.4);
-      transition: background 0.2s ease, transform 0.1s ease;
-    }
-    #closePlayer:hover {
-      background: #ff4444;
-      transform: scale(1.1);
-    }
-    #closePlayer:active {
-      transform: scale(0.95);
-    }
-  `;
+
+/* ✋ ドラッグハンドル */
+#dragHandle {
+  width: 100%;
+  height: 40px;
+  background: linear-gradient(to bottom, #bbb, #999);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  cursor: grab;
+  box-shadow: inset 0 -2px 3px rgba(0,0,0,0.2);
+}
+#dragHandle:active {
+  cursor: grabbing;
+  background: linear-gradient(to bottom, #999, #777);
+}
+.grip {
+  width: 60px;
+  height: 6px;
+  background: #666;
+  border-radius: 3px;
+}
+
+/* ❌ 閉じるボタン（大きめ・押しやすく） */
+#closePlayer {
+  background: #e53935;
+  color: white;
+  border: none;
+  font-size: 2em;
+  font-weight: bold;
+  width: 55px;
+  height: 55px;
+  cursor: pointer;
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border-radius: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+#closePlayer:hover {
+  background: #ff4444;
+  transform: scale(1.1);
+}
+#closePlayer:active {
+  transform: scale(0.95);
+}
+ 
+  ;
   document.head.appendChild(style);
 
   const popup = document.getElementById("popupPlayer");
