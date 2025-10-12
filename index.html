@@ -255,8 +255,14 @@ document.head.appendChild(style);
   // ✅ 閉じるボタン
   document.getElementById("closePlayer").addEventListener("click", () => {
     popup.classList.add("hidden");
-    playerContainer.innerHTML = "";
-  });
+    playerContainer.innerHTML = `
+  <iframe
+    src="${embedUrl}"
+    allow="autoplay; encrypted-media"
+    allowfullscreen
+    frameborder="0"
+    style="width:100%; height:100%; border:none;"
+  ></iframe>`;
 
   // ✅ ドラッグ対応（マウス + タッチ）
   let offsetX, offsetY, isDragging = false;
