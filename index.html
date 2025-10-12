@@ -34,7 +34,7 @@
 <div id="results"></div>
 <div id="viewer"></div>
 
-<!-- ✅ 必ずこの行で files.js を読み込む -->
+<!-- ✅ ファイル一覧 -->
 <script src="data/files.js"></script>
 
 <script>
@@ -47,7 +47,6 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
   const results = [];
 
-  // ✅ files.js 内の配列をループして検索
   for (const f of files) {
     try {
       const res = await fetch(f.url);
@@ -56,9 +55,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
       const regex = new RegExp(`(.{0,40})(${query})(.{0,40})`, "gi");
       let match;
-      let matchIndex = 0;
       while ((match = regex.exec(text)) !== null) {
-        matchIndex++;
         results.push({
           title: f.title,
           url: f.url,
@@ -97,24 +94,19 @@ async function showInViewer(result, query) {
   const res = await fetch(result.url);
   const parser = new DOMParser();
   const doc = parser.parseFromString(await res.text(), "text/html");
+
+  // ✅ 元HTMLの色や装飾を保持
   let text = doc.body.innerHTML;
 
-// タイム部分にリンク機能を追加（既存のHTMLを壊さない）
-text = text.replace(
-  /(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
-  '<span class="time" data-time="$1">$1</span>'
-);
+  // ✅ タイムスタンプを安全にリンク化（タグ壊さない）
+  text = text.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
+    '<span class="time" data-time="$1">$1</span>');
 
-// 検索語のハイライトもHTMLタグを壊さないように
-if (query) {
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`(${escaped})(?![^<]*>)`, 'gi');
-  text = text.replace(re, '<span class="highlight">$1</span>');
-}
+  // ✅ 検索語ハイライトもタグ破壊防止
   if (query) {
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp(escaped, 'gi');
-    text = text.replace(re, (m) => `<span class="highlight">${m}</span>`);
+    const re = new RegExp(`(${escaped})(?![^<]*>)`, 'gi');
+    text = text.replace(re, '<span class="highlight">$1</span>');
   }
 
   viewer.innerHTML = `
@@ -137,7 +129,7 @@ if (query) {
       left: 50%;
       transform: translateX(-50%);
       width: 50vw;
-      height: calc(50vw * 9 / 16 + 40px); /* 16:9 + ドラッグバー */
+      height: calc(50vw * 9 / 16 + 40px);
       background: #000;
       border-radius: 10px;
       overflow: hidden;
@@ -216,7 +208,7 @@ if (query) {
   const popup = document.getElementById("popupPlayer");
   const playerContainer = document.getElementById("playerContainer");
 
-  // ▶ タイムクリックで動画再生
+  // ▶ タイムクリックで再生
   document.querySelectorAll(".time").forEach(el => {
     el.addEventListener("click", () => {
       const time = el.dataset.time;
@@ -224,8 +216,8 @@ if (query) {
       const seconds = h * 3600 + m * 60 + s;
       const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
       const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
-      playerContainer.innerHTML = `
-        <iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+
+      playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
       popup.classList.remove("hidden");
     });
   });
@@ -236,7 +228,7 @@ if (query) {
     playerContainer.innerHTML = "";
   });
 
-  // ドラッグ
+  // ドラッグ移動
   let offsetX, offsetY, isDragging = false;
   const dragHandle = document.getElementById("dragHandle");
 
