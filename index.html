@@ -21,7 +21,7 @@
     box-shadow: 0 0 5px rgba(0, 123, 255, 0.4);
   }
   .result { margin: 1em 0; cursor: pointer; border-bottom: 1px solid #ccc; padding: 0.5em 0; }
-  .highlight { background-color: pink; font-weight: bold; }
+  .highlight { background-color: yellow; font-weight: bold; }
   #viewer { margin-top: 2em; white-space: pre-wrap; border-top: 2px solid #666; padding-top: 1em; }
   #note { color: #555; font-size: 0.95em; margin-top: 1em; background: #f6f6f6; padding: 0.8em; border-radius: 8px; }
   .hidden { display: none !important; }
@@ -83,7 +83,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
   const note = document.createElement("div");
   note.id = "note";
-  note.innerHTML = `<strong>結果の見方：</strong><br>各行にはキーワード前後の文脈が表示されます。<br>クリックすると全文が読み込まれます。`;
+  note.innerHTML = `<strong>結果の見方：</strong><br>検索したキーワードを含む箇所の一覧が表示されます。<br>クリックすると全文が表示されます。`;
   resultsDiv.appendChild(note);
 
   for (const r of results) {
