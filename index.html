@@ -24,6 +24,9 @@
   .highlight { background-color: yellow; font-weight: bold; }
   #viewer { margin-top: 2em; white-space: pre-wrap; border-top: 2px solid #666; padding-top: 1em; }
   #note { color: #555; font-size: 0.95em; margin-top: 1em; background: #f6f6f6; padding: 0.8em; border-radius: 8px; }
+  .hidden {
+  display: none !important;
+  }
 </style>
 </head>
 <body>
@@ -228,7 +231,16 @@ document.head.appendChild(style);
       const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
       const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
 
-      playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      playerContainer.innerHTML = `
+  <iframe
+    src="${embedUrl}"
+    width="100%"
+    height="100%"
+    allow="autoplay; encrypted-media"
+    allowfullscreen
+    frameborder="0"
+    style="border: none;"
+  ></iframe>`;
       popup.classList.remove("hidden");
     });
   });
