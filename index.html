@@ -29,6 +29,7 @@
   #viewer { margin-top: 2em; white-space: pre-wrap; border-top: 2px solid #666; padding-top: 1em; }
   #note { color: #555; font-size: 0.95em; margin-top: 1em; background: #f6f6f6; padding: 0.8em; border-radius: 8px; }
 </style>
+</style>
 </head>
 <body>
 
@@ -37,100 +38,14 @@
 <div id="results"></div>
 <div id="viewer"></div>
 
+<!-- ✅ まずここで files.js を読み込む -->
+<script src="data/files.js"></script>
+
+<!-- ✅ その下で検索ロジックを読み込む -->
 <script>
-const files = [
-  { title: "2025-09-03 北海道・稚内市 山本太郎とおしゃべり会", url: "talks/2025-09-03-wakkanai.html" },
-  { title: "2025-09-06 北海道・岩見沢市 山本太郎とおしゃべり会", url: "talks/2025-09-06-iwamisawa.html" }
-];
-
 document.getElementById("search").addEventListener("input", async (e) => {
-  const query = e.target.value.trim();
-  const resultsDiv = document.getElementById("results");
-  resultsDiv.innerHTML = "";
-
-  if (!query) return;
-
-  const results = [];
-
-  for (const f of files) {
-    const res = await fetch(f.url);
-    const text = await res.text();
-
-    const regex = new RegExp(`(.{0,40})(${query})(.{0,40})`, "gi");
-    let match;
-    let matchIndex = 0;
-    while ((match = regex.exec(text)) !== null) {
-      matchIndex++;
-      results.push({
-        title: f.title,
-        url: f.url,
-        before: match[1],
-        word: match[2],
-        after: match[3],
-        index: match.index,
-        count: matchIndex
-      });
-    }
-  }
-
-  if (results.length === 0) {
-    resultsDiv.innerHTML = "<p>一致する結果はありません。</p>";
-    return;
-  }
-
-  // ✅ 検索結果の上に説明文を追加
-  const note = document.createElement("div");
-  note.id = "note";
-  note.innerHTML = `
-    <strong>結果の見方：</strong><br>
-    各行には、キーワードが登場した文脈が表示されています。<br>
-    気になる箇所をタップすると、全文が読み込まれ、
-    <span class="highlight">該当部分に自動スクロール</span>します。`;
-  resultsDiv.appendChild(note);
-
-  // ✅ 結果一覧を追加
-  for (const r of results) {
-    const div = document.createElement("div");
-    div.className = "result";
-    div.innerHTML = `<strong>${r.title}</strong>（${r.count} ）<br>
-      ...${r.before}<span class="highlight">${r.word}</span>${r.after}...`;
-    div.addEventListener("click", () => showInViewer(r, query));
-    resultsDiv.appendChild(div);
-  }
+  // ここは今まで通りのコード
 });
-
-async function showInViewer(result, query) {
-  const viewer = document.getElementById("viewer");
-  const res = await fetch(result.url);
-  const raw = await res.text();
-
-  // 1) HTMLエスケープ（安全のため）
-  const escapeHtml = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  let text = escapeHtml(raw);
-
-  // 2) YouTubeリンクをクリック可能に変換（短縮URLも対応）
-  text = text.replace(
-    /(https:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^\s<>)\]]+)/g,
-    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-  );
-
-  // 3) 検索語をハイライト
-  if (query) {
-    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp(escaped, 'gi');
-    let i = 0;
-    text = text.replace(re, m => `<span class="highlight" data-hit="${++i}">${m}</span>`);
-  }
-
-  // 4) 表示
-  viewer.innerHTML = `<h2>${result.title}</h2>${text}`;
-
-  // 5) 該当箇所へ自動スクロール
-  setTimeout(() => {
-    const el = viewer.querySelector(`[data-hit="${result.count}"]`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, 100);
-}
 </script>
 
 </body>
