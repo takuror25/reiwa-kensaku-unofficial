@@ -136,13 +136,12 @@ async function showInViewer(result, query) {
       background-color: yellow;
       font-weight: bold;
     }
-    #popupPlayer {
+ #popupPlayer {
   position: fixed;
   bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
-  width: 50vw;          /* スマホで画面横幅の50% */
-  aspect-ratio: 16 / 9; /* 高さを自動計算して16:9に保つ */
+  width: 50vw;
   background: #000;
   border-radius: 10px;
   overflow: hidden;
@@ -154,15 +153,22 @@ async function showInViewer(result, query) {
   transition: transform 0.2s ease;
 }
 
-/* 📱 スマホではこの設定を優先 */
+/* 📱スマホでは画面の半分くらいの横幅、高さを自動 */
 @media (max-width: 768px) {
   #popupPlayer {
-    width: 50vw;        /* スマホで画面の半分の横幅 */
-    aspect-ratio: 16 / 9;
+    width: 50vw;
     bottom: 12px;
     left: 50%;
     transform: translateX(-50%);
   }
+}
+
+/* iframe は常に親要素にフィットして全UIを表示 */
+#playerContainer iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
 }
 
 /* ✋ ドラッグハンドル */
@@ -183,10 +189,11 @@ async function showInViewer(result, query) {
   background: linear-gradient(to bottom, #999, #777);
 }
 .grip {
-  width: 60px;
+
+  width: 
+  border-radius: 3px;60px;
   height: 6px;
   background: #666;
-  border-radius: 3px;
 }
 
 /* ❌ 閉じるボタン（大きめ・押しやすく） */
