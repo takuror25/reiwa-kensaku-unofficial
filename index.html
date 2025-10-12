@@ -95,21 +95,148 @@ document.getElementById("search").addEventListener("input", async (e) => {
 async function showInViewer(result, query) {
   const viewer = document.getElementById("viewer");
   const res = await fetch(result.url);
-  const raw = await res.text();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(await res.text(), "text/html");
 
-  const escapeHtml = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  let text = escapeHtml(raw);
+  // ✅ HTMLを安全に抽出
+  let text = doc.body.innerHTML;
 
-  text = text.replace(/(https:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^\s<>)\]]+)/g,
-    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+  // ✅ タイムをクリックできるように変換
+  text = text.replace(
+    /(\d{2}:\d{2}:\d{2})/g,
+    (match) => `<span class="time" data-time="${match}">${match}</span>`
+  );
 
+  // ✅ 検索語ハイライト
   if (query) {
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const re = new RegExp(escaped, 'gi');
-    text = text.replace(re, m => `<span class="highlight">${m}</span>`);
+    text = text.replace(re, (m) => `<span class="highlight">${m}</span>`);
   }
 
-  viewer.innerHTML = `<h2>${result.title}</h2>` + text;
+  // ✅ 本文とポップアップエリアを表示
+  viewer.innerHTML = `
+    <h2>${result.title}</h2>
+    <div class="talk-text">${text}</div>
+    <div id="popupPlayer" class="hidden">
+      <button id="closePlayer">×</button>
+      <div id="playerContainer"></div>
+    </div>
+  `;
+
+  // ✅ CSS追加
+  const style = document.createElement("style");
+  style.textContent = `
+    .time {
+      color: #007bff;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .highlight {
+      background-color: yellow;
+      font-weight: bold;
+    }
+    #popupPlayer {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 360px;
+      height: 203px;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      touch-action: none;
+    }
+    #popupPlayer.hidden {
+      display: none;
+    }
+    #popupPlayer iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    #closePlayer {
+      background: rgba(0,0,0,0.6);
+      color: white;
+      border: none;
+      font-size: 1.4em;
+      padding: 2px 8px;
+      cursor: pointer;
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      border-radius: 4px;
+      z-index: 2;
+    }
+    #closePlayer:hover {
+      background: rgba(255,0,0,0.8);
+    }
+  `;
+  document.head.appendChild(style);
+
+  const popup = document.getElementById("popupPlayer");
+  const playerContainer = document.getElementById("playerContainer");
+
+  // ✅ タイムクリックで再生
+  document.querySelectorAll(".time").forEach(el => {
+    el.addEventListener("click", () => {
+      const time = el.dataset.time;
+      const [h, m, s] = time.split(":").map(Number);
+      const seconds = h * 3600 + m * 60 + s;
+      const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
+      const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
+
+      playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      popup.classList.remove("hidden");
+    });
+  });
+
+  // ✅ ×ボタンで閉じる
+  document.getElementById("closePlayer").addEventListener("click", () => {
+    popup.classList.add("hidden");
+    playerContainer.innerHTML = "";
+  });
+
+  // ✅ マウス＆タッチでドラッグ移動対応
+  let offsetX, offsetY, isDragging = false;
+
+  const startDrag = (x, y) => {
+    isDragging = true;
+    const rect = popup.getBoundingClientRect();
+    offsetX = x - rect.left;
+    offsetY = y - rect.top;
+    popup.style.transition = "none";
+  };
+
+  const moveDrag = (x, y) => {
+    if (!isDragging) return;
+    popup.style.left = (x - offsetX) + "px";
+    popup.style.top = (y - offsetY) + "px";
+    popup.style.bottom = "auto";
+    popup.style.right = "auto";
+  };
+
+  const stopDrag = () => { isDragging = false; };
+
+  // マウス操作
+  popup.addEventListener("mousedown", (e) => startDrag(e.clientX, e.clientY));
+  document.addEventListener("mousemove", (e) => moveDrag(e.clientX, e.clientY));
+  document.addEventListener("mouseup", stopDrag);
+
+  // タッチ操作
+  popup.addEventListener("touchstart", (e) => {
+    const touch = e.touches[0];
+    startDrag(touch.clientX, touch.clientY);
+  });
+  document.addEventListener("touchmove", (e) => {
+    const touch = e.touches[0];
+    moveDrag(touch.clientX, touch.clientY);
+  });
+  document.addEventListener("touchend", stopDrag);
 }
 </script>
 
