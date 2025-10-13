@@ -152,7 +152,7 @@ async function showInViewer(result, keywords) {
     finalText += p;
   }
 
-  // ✅ 全文構築後にタイムをリンク化（←この位置に移動！）
+  // ✅ 全文構築後にタイムをリンク化
   finalText = finalText.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
     '<span class="time" data-time="$1">$1</span>');
 
@@ -166,62 +166,30 @@ async function showInViewer(result, keywords) {
     </div>
   `;
 
-  // ✅ 各段落ごとにAND条件でハイライト
-  const paragraphs = text.split(/(<\/p>)/g);
-  let paragraphIndex = 0;
-  let finalText = "";
+  // 🎯 正確に該当箇所へジャンプ & 自動再生
+  setTimeout(() => {
+    const targetText = result.fragment.slice(0, 30);
+    const highlights = viewer.querySelectorAll(".highlight");
+    for (const h of highlights) {
+      if (h.parentElement.textContent.includes(targetText)) {
+        h.scrollIntoView({ behavior: "smooth", block: "center" });
 
-  for (let i = 0; i < paragraphs.length; i++) {
-    let p = paragraphs[i];
-    if (!p.trim()) continue;
-
-    const plain = p.replace(/<[^>]+>/g, ""); // タグ除去
-    if (keywords.every(k => plain.includes(k))) {
-      paragraphIndex++;
-      for (const k of keywords) {
-        const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        p = p.replace(new RegExp(`(${escaped})(?![^<]*>)`, "gi"), '<span class="highlight" data-hit="' + paragraphIndex + '">$1</span>');
+        const timeEl = h.closest("p")?.querySelector(".time");
+        if (timeEl) {
+          const time = timeEl.dataset.time;
+          const [hmsH, hmsM, hmsS] = time.split(":").map(Number);
+          const seconds = hmsH * 3600 + hmsM * 60 + hmsS;
+          const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
+          const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
+          const popup = document.getElementById("popupPlayer");
+          const playerContainer = document.getElementById("playerContainer");
+          playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+          popup.classList.remove("hidden");
+        }
+        break;
       }
     }
-    finalText += p;
-  }
-
-  viewer.innerHTML = `
-    <h2>${result.title}</h2>
-    <div class="talk-text">${finalText}</div>
-    <div id="popupPlayer" class="hidden">
-      <div id="dragHandle"><div class="grip"></div></div>
-      <button id="closePlayer">×</button>
-      <div id="playerContainer"></div>
-    </div>
-  `;
-
-// 🎯 正確に該当箇所へジャンプ
-setTimeout(() => {
-  const targetText = result.fragment.slice(0, 30);
-  const highlights = viewer.querySelectorAll(".highlight");
-  for (const h of highlights) {
-    if (h.parentElement.textContent.includes(targetText)) {
-      h.scrollIntoView({ behavior: "smooth", block: "center" });
-
-      // 🟢 自動再生追加部分：該当段落の直前にあるタイムスタンプを探して再生
-      const timeEl = h.closest("p")?.querySelector(".time");
-      if (timeEl) {
-        const time = timeEl.dataset.time;
-        const [hmsH, hmsM, hmsS] = time.split(":").map(Number);
-        const seconds = hmsH * 3600 + hmsM * 60 + hmsS;
-        const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
-        const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
-        const popup = document.getElementById("popupPlayer");
-        const playerContainer = document.getElementById("playerContainer");
-        playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-        popup.classList.remove("hidden");
-      }
-
-      break;
-    }
-  }
-}, 400);
+  }, 400);
 
   // --- 以下、プレイヤー処理は変更なし ---
   const style = document.createElement("style");
