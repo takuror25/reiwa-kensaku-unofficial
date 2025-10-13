@@ -7,7 +7,7 @@ const files = [
  {
     title: "2025-09-06 北海道・岩見沢市 山本太郎とおしゃべり会",
     url: "talks/2025-09-06-iwamisawa.html",
-    video: ""
+    video: "https://www.youtube.com/watch?v=Zkyo2S-LCiY"
   },
   
   {
