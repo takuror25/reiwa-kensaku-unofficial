@@ -1,14 +1,17 @@
+// data/files.js
+// れいわ街宣・おしゃべり会 各回リスト
+// AND検索対応の index.html と連動します
 
 const files = [
-  { 
+  {
     title: "2025-09-03 北海道・稚内市 山本太郎とおしゃべり会",
     url: "talks/2025-09-03-wakkanai.html",
-    video: "https://www.youtube.com/live/3Lc0U6-RGYA"
+    video: "https://www.youtube.com/watch?v=3Lc0U6-RGYA"
   },
-  { 
-    title: "2025-09-03 北海道・岩見沢市 山本太郎とおしゃべり会",
+  {
+    title: "2025-09-06 北海道・岩見沢市 山本太郎とおしゃべり会",
     url: "talks/2025-09-06-iwamisawa.html",
-    video: "https://www.youtube.com/live/AbCdEfGhIjK"
+    video: "https://www.youtube.com/watch?v=7G9Y2Z8qA3k"
   },
-  // ← ここにどんどん追加していけます
+  
 ];
