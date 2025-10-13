@@ -35,8 +35,11 @@
 <body>
 
 <h1>れいわ新選組街宣・おしゃべり会検索（非公式）</h1>
-<p>スペース区切りで複数語を入力すると「AND検索」ができます。</p>
-<input type="text" id="search" placeholder="キーワードを入力（例：消費税 物価）">
+<p>キーワードを入力すると一覧が表示されます。<br>
+  一覧の中からどれかをクリックすると、その全文とYouTubeのタイムのリンクが表示されます。<br>
+  ※AIを使用して文字化しているため、内容が不正確な部分や誤字が発生する可能性があります。<br>
+  ※正確な情報源としては、れいわ新選組の公式YouTubもご確認ください。 <p>
+<input type="text" id="search" placeholder="キーワードを入力">
 <div id="results"></div>
 <div id="viewer"></div>
 
@@ -89,8 +92,8 @@ document.getElementById("search").addEventListener("input", async (e) => {
   note.id = "note";
   note.innerHTML = `
     <strong>結果の見方：</strong><br>
-    AND検索ではすべてのキーワードを含む部分だけを抽出します。<br>
-    各行をクリックすると全文を開き、該当箇所にスクロールします。
+    検索したワードを含む部分を一覧で表示します。<br>
+    一覧の中からクリックすると全文が開き、該当箇所にスクロールします。
   `;
   resultsDiv.appendChild(note);
 
