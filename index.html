@@ -153,9 +153,10 @@ async function showInViewer(result, keywords) {
   }
 
   // ✅ 全文構築後にタイムをリンク化
-  finalText = finalText.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
-    '<span class="time" data-time="$1">$1</span>');
-
+  // ✅ 修正版：タグの内外問わず全タイムをリンク化
+finalText = finalText.replace(/(\d{2}:\d{2}:\d{2})/g,
+  '<span class="time" data-time="$1">$1</span>');
+  
   // HTMLに挿入
   viewer.innerHTML = `
     <h2>${result.title}</h2>
