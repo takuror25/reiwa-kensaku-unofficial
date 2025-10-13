@@ -131,7 +131,7 @@ async function showInViewer(result, keywords) {
 
   let text = doc.body.innerHTML;
 
-  // ✅ 各段落ごとにAND条件でハイライト
+  // 各段落ごとにAND条件でハイライト
   const paragraphs = text.split(/(<\/p>)/g);
   let paragraphIndex = 0;
   let finalText = "";
@@ -156,6 +156,7 @@ async function showInViewer(result, keywords) {
   finalText = finalText.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
     '<span class="time" data-time="$1">$1</span>');
 
+  // HTMLに挿入
   viewer.innerHTML = `
     <h2>${result.title}</h2>
     <div class="talk-text">${finalText}</div>
@@ -166,32 +167,34 @@ async function showInViewer(result, keywords) {
     </div>
   `;
 
-  // 🎯 正確に該当箇所へジャンプ & 自動再生
+  // ✅ この時点でDOMが生成されているのでクリックイベント登録
+  document.querySelectorAll(".time").forEach(el => {
+    el.addEventListener("click", () => {
+      const time = el.dataset.time;
+      const [h, m, s] = time.split(":").map(Number);
+      const seconds = h * 3600 + m * 60 + s;
+      const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
+      const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
+      const popup = document.getElementById("popupPlayer");
+      const playerContainer = document.getElementById("playerContainer");
+      playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      popup.classList.remove("hidden");
+    });
+  });
+
+  // 🎯 該当箇所にジャンプ＆自動再生
   setTimeout(() => {
     const targetText = result.fragment.slice(0, 30);
     const highlights = viewer.querySelectorAll(".highlight");
     for (const h of highlights) {
       if (h.parentElement.textContent.includes(targetText)) {
         h.scrollIntoView({ behavior: "smooth", block: "center" });
-
-        const timeEl = h.closest("p")?.querySelector(".time");
-        if (timeEl) {
-          const time = timeEl.dataset.time;
-          const [hmsH, hmsM, hmsS] = time.split(":").map(Number);
-          const seconds = hmsH * 3600 + hmsM * 60 + hmsS;
-          const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
-          const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
-          const popup = document.getElementById("popupPlayer");
-          const playerContainer = document.getElementById("playerContainer");
-          playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-          popup.classList.remove("hidden");
-        }
         break;
       }
     }
-  }, 400);
+  }, 300);
 
-  // --- 以下、プレイヤー処理は変更なし ---
+  // --- ポップアップ用のスタイルと閉じる処理 ---
   const style = document.createElement("style");
   style.textContent = `
     .time { color: #007bff; text-decoration: underline; cursor: pointer; }
@@ -209,40 +212,19 @@ async function showInViewer(result, keywords) {
     #playerContainer iframe {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;
     }
-    #dragHandle { width: 100%; height: 40px;
-      background: linear-gradient(to bottom, #bbb, #999);
-      display: flex; align-items: center; justify-content: center; cursor: grab;
-    }
-    .grip { width: 60px; height: 6px; background: #666; border-radius: 3px; }
     #closePlayer {
       background: #e53935; color: white; border: none;
       font-size: 2em; font-weight: bold; width: 55px; height: 55px;
       cursor: pointer; position: absolute; top: 6px; right: 6px;
       border-radius: 50%; z-index: 3;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.4);
     }
     #closePlayer:hover { background: #ff4444; transform: scale(1.1); }
-    #closePlayer:active { transform: scale(0.95); }
   `;
   document.head.appendChild(style);
 
-  const popup = document.getElementById("popupPlayer");
-  const playerContainer = document.getElementById("playerContainer");
-
-  document.querySelectorAll(".time").forEach(el => {
-    el.addEventListener("click", () => {
-      const time = el.dataset.time;
-      const [h, m, s] = time.split(":").map(Number);
-      const seconds = h * 3600 + m * 60 + s;
-      const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
-      const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
-      playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-      popup.classList.remove("hidden");
-    });
-  });
-
   document.getElementById("closePlayer").addEventListener("click", () => {
+    const popup = document.getElementById("popupPlayer");
+    const playerContainer = document.getElementById("playerContainer");
     popup.classList.add("hidden");
     playerContainer.innerHTML = "";
   });
