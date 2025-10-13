@@ -30,7 +30,6 @@
   .q { color: #dc143c; }   /* 質問者 */
   .r { color: #006400; }   /* その他議員 */
   .v { color: #ff1493; }   /* ボランティアなど */
-
 </style>
 </head>
 <body>
@@ -61,14 +60,17 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
       const regex = new RegExp(`(.{0,40})(${query})(.{0,40})`, "gi");
       let match;
+      let index = 0;
       while ((match = regex.exec(text)) !== null) {
+        index++;
         results.push({
           title: f.title,
           url: f.url,
           video: f.video,
           before: match[1],
           word: match[2],
-          after: match[3]
+          after: match[3],
+          index
         });
       }
     } catch (err) {
@@ -83,7 +85,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
   const note = document.createElement("div");
   note.id = "note";
-  note.innerHTML = `<strong>結果の見方：</strong><br>検索したキーワードを含む箇所の一覧が表示されます。<br>クリックすると全文が表示されます。`;
+  note.innerHTML = `<strong>結果の見方：</strong><br>検索したキーワードを含む箇所の一覧が表示されます。<br>クリックすると全文が表示され、該当部分に自動スクロールします。`;
   resultsDiv.appendChild(note);
 
   for (const r of results) {
@@ -101,14 +103,13 @@ async function showInViewer(result, query) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(await res.text(), "text/html");
 
-  // ✅ 元HTMLの色や装飾を保持
   let text = doc.body.innerHTML;
 
-  // ✅ タイムスタンプを安全にリンク化（タグ壊さない）
+  // ✅ タイムをクリック可能に変換
   text = text.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
     '<span class="time" data-time="$1">$1</span>');
 
-  // ✅ 検索語ハイライトもタグ破壊防止
+  // ✅ 検索語をハイライト
   if (query) {
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const re = new RegExp(`(${escaped})(?![^<]*>)`, 'gi');
@@ -225,6 +226,7 @@ async function showInViewer(result, query) {
 
       playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
       popup.classList.remove("hidden");
+      popup.style.transform = "none"; // ドラッグ安定化
     });
   });
 
@@ -267,12 +269,11 @@ async function showInViewer(result, query) {
   });
   document.addEventListener("touchend", stopDrag);
 
-  // ✅ ハイライト箇所へスクロール（クリックした箇所に移動）
-setTimeout(() => {
-  const highlights = viewer.querySelectorAll(".highlight");
-  const target = highlights[result.count - 1]; // ←クリックしたヒット番号に対応
-  if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
-}, 300);
+  // ✅ 該当箇所に自動スクロール
+  setTimeout(() => {
+    const highlight = viewer.querySelector(".highlight");
+    if (highlight) highlight.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 300);
 }
 </script>
 
