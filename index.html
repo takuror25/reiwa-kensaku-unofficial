@@ -267,10 +267,12 @@ async function showInViewer(result, query) {
   });
   document.addEventListener("touchend", stopDrag);
 
-  setTimeout(() => {
-    const el = viewer.querySelector(".highlight");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, 300);
+  // ✅ ハイライト箇所へスクロール（クリックした箇所に移動）
+setTimeout(() => {
+  const highlights = viewer.querySelectorAll(".highlight");
+  const target = highlights[result.count - 1]; // ←クリックしたヒット番号に対応
+  if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+}, 300);
 }
 </script>
 
