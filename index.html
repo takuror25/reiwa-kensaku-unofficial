@@ -167,12 +167,26 @@ async function showInViewer(result, keywords) {
 
 // 🎯 正確に該当箇所へジャンプ
 setTimeout(() => {
-  // 抽出したfragment（部分テキスト）で検索し、最初の一致箇所へ移動
-  const targetText = result.fragment.slice(0, 30); // 一致確認用に先頭30文字ほど使う
+  const targetText = result.fragment.slice(0, 30);
   const highlights = viewer.querySelectorAll(".highlight");
   for (const h of highlights) {
     if (h.parentElement.textContent.includes(targetText)) {
       h.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      // 🟢 自動再生追加部分：該当段落の直前にあるタイムスタンプを探して再生
+      const timeEl = h.closest("p")?.querySelector(".time");
+      if (timeEl) {
+        const time = timeEl.dataset.time;
+        const [hmsH, hmsM, hmsS] = time.split(":").map(Number);
+        const seconds = hmsH * 3600 + hmsM * 60 + hmsS;
+        const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
+        const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
+        const popup = document.getElementById("popupPlayer");
+        const playerContainer = document.getElementById("playerContainer");
+        playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+        popup.classList.remove("hidden");
+      }
+
       break;
     }
   }
