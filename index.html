@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -21,7 +21,7 @@
     box-shadow: 0 0 5px rgba(0, 123, 255, 0.4);
   }
   .result { margin: 1em 0; cursor: pointer; border-bottom: 1px solid #ccc; padding: 0.5em 0; }
-  .highlight { background-color: #ffb6c1; font-weight: bold; } /* ← ピンク系に変更 */
+  .highlight { background-color: #ffb6c1; font-weight: bold; } /* ピンク系 */
   #viewer { margin-top: 2em; white-space: pre-wrap; border-top: 2px solid #666; padding-top: 1em; }
   #note { color: #555; font-size: 0.95em; margin-top: 1em; background: #f6f6f6; padding: 0.8em; border-radius: 8px; }
   .hidden { display: none !important; }
@@ -40,11 +40,10 @@
   一覧の中からどれかをクリックすると、その全文とYouTubeのタイムのリンクが表示されます。<br>
   ※AIを使用して文字化しているため、内容が不正確な部分や誤字が発生する可能性があります。<br>
   ※正確な情報源としては、れいわ新選組の公式YouTubもご確認ください。 <p>
-<input type="text" id="search" placeholder="キーワードを入力">
+<input type="text" id="search" placeholder="キーワードを入力（例：消費税 物価）">
 <div id="results"></div>
 <div id="viewer"></div>
 
-<!-- ✅ ファイル一覧 -->
 <script src="data/files.js?v=3"></script>
 
 <script>
@@ -54,7 +53,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
   resultsDiv.innerHTML = "";
   if (!query) return;
 
-  const keywords = query.split(/\s+/); // ← スペースで区切り AND検索対応
+  const keywords = query.split(/\s+/);
   const results = [];
 
   for (const f of files) {
@@ -62,21 +61,20 @@ document.getElementById("search").addEventListener("input", async (e) => {
       const res = await fetch(f.url);
       if (!res.ok) continue;
       const text = await res.text();
-
-      // HTMLタグを除いて純テキストとして扱う
       const plain = text.replace(/<[^>]*>/g, "");
 
-      // 前後100文字の範囲内に全てのキーワードを含む部分を抽出
       const contextRegex = new RegExp(`(.{0,100})(` + keywords.join("|") + `)(.{0,100})`, "gi");
-      let match;
+      let match, count = 0;
       while ((match = contextRegex.exec(plain)) !== null) {
         const fragment = match[0];
         if (keywords.every(k => fragment.includes(k))) {
+          count++;
           results.push({
             title: f.title,
             url: f.url,
             video: f.video,
-            fragment
+            fragment,
+            index: count // ← このヒット番号を記録
           });
         }
       }
@@ -100,7 +98,6 @@ document.getElementById("search").addEventListener("input", async (e) => {
   resultsDiv.appendChild(note);
 
   for (const r of results) {
-    // 各キーワードをハイライト
     let highlighted = r.fragment;
     for (const k of keywords) {
       const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -122,12 +119,8 @@ async function showInViewer(result, keywords) {
   const doc = parser.parseFromString(await res.text(), "text/html");
 
   let text = doc.body.innerHTML;
+  text = text.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g, '<span class="time" data-time="$1">$1</span>');
 
-  // タイムをリンク化
-  text = text.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
-    '<span class="time" data-time="$1">$1</span>');
-
-  // 検索語をハイライト
   for (const k of keywords) {
     const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const re = new RegExp(`(${escaped})(?![^<]*>)`, 'gi');
@@ -144,46 +137,42 @@ async function showInViewer(result, keywords) {
     </div>
   `;
 
+  // 🎯クリックした検索結果のハイライトにスクロール
+  setTimeout(() => {
+    const highlights = viewer.querySelectorAll(".highlight");
+    const target = highlights[result.index - 1];
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 400);
+
+  // 以下ポップアッププレイヤー処理は同じ（省略せずに維持）
   const style = document.createElement("style");
   style.textContent = `
     .time { color: #007bff; text-decoration: underline; cursor: pointer; }
     #popupPlayer {
-      position: fixed;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 50vw;
-      height: calc(50vw * 9 / 16 + 40px);
-      background: #000;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
+      position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+      width: 50vw; height: calc(50vw * 9 / 16 + 40px);
+      background: #000; border-radius: 10px; overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 9999;
+      display: flex; flex-direction: column;
     }
     @media (max-width: 768px) {
-      #popupPlayer {
-        width: 90vw;
-        height: calc(90vw * 9 / 16 + 50px);
-      }
+      #popupPlayer { width: 90vw; height: calc(90vw * 9 / 16 + 50px); }
     }
     #playerContainer { flex-grow: 1; width: 100%; position: relative; background: #000; }
     #playerContainer iframe {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;
     }
-    #dragHandle {
-      width: 100%; height: 40px;
+    #dragHandle { width: 100%; height: 40px;
       background: linear-gradient(to bottom, #bbb, #999);
-      display: flex; align-items: center; justify-content: center;
-      cursor: grab;
+      display: flex; align-items: center; justify-content: center; cursor: grab;
     }
     .grip { width: 60px; height: 6px; background: #666; border-radius: 3px; }
     #closePlayer {
       background: #e53935; color: white; border: none;
       font-size: 2em; font-weight: bold; width: 55px; height: 55px;
       cursor: pointer; position: absolute; top: 6px; right: 6px;
-      border-radius: 50%; z-index: 3; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; z-index: 3;
+      display: flex; align-items: center; justify-content: center;
       box-shadow: 0 3px 8px rgba(0,0,0,0.4);
     }
     #closePlayer:hover { background: #ff4444; transform: scale(1.1); }
@@ -194,7 +183,6 @@ async function showInViewer(result, keywords) {
   const popup = document.getElementById("popupPlayer");
   const playerContainer = document.getElementById("playerContainer");
 
-  // ▶ タイムクリックで再生
   document.querySelectorAll(".time").forEach(el => {
     el.addEventListener("click", () => {
       const time = el.dataset.time;
@@ -202,13 +190,11 @@ async function showInViewer(result, keywords) {
       const seconds = h * 3600 + m * 60 + s;
       const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
       const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
-
       playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
       popup.classList.remove("hidden");
     });
   });
 
-  // ❌ 閉じるボタン
   document.getElementById("closePlayer").addEventListener("click", () => {
     popup.classList.add("hidden");
     playerContainer.innerHTML = "";
