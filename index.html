@@ -1,52 +1,161 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>れいわ街宣・おしゃべり会全文検索ツール（非公式）</title>
 <style>
   body { font-family: sans-serif; margin: 2em; line-height: 1.6; }
   input#search {
-    width: 100%;
-    padding: 20px 16px;
-    font-size: 1.1em;
-    border: 2px solid #888;
-    border-radius: 12px;
-    box-sizing: border-box;
-    outline: none;
-    transition: all 0.2s ease;
+    width: 100%; padding: 20px 16px; font-size: 1.1em;
+    border: 2px solid #888; border-radius: 12px; box-sizing: border-box;
+    outline: none; transition: all 0.2s ease;
   }
-  input#search:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 5px rgba(0, 123, 255, 0.4);
-  }
-  .result { margin: 1em 0; cursor: pointer; border-bottom: 1px solid #ccc; padding: 0.5em 0; }
-  .highlight { background-color: yellow; font-weight: bold; }
-  #viewer { margin-top: 2em; white-space: pre-wrap; border-top: 2px solid #666; padding-top: 1em; }
-  #note { color: #555; font-size: 0.95em; margin-top: 1em; background: #f6f6f6; padding: 0.8em; border-radius: 8px; }
-  .hidden { display: none !important; }
+  input#search:focus { border-color: #007bff; box-shadow: 0 0 5px rgba(0,123,255,.4); }
+  .result { margin: 1em 0; cursor: pointer; border-bottom: 1px solid #ccc; padding: .5em 0; }
+  .highlight { background: yellow; font-weight: bold; }
+  #viewer { margin-top: 2em; white-space: normal; border-top: 2px solid #666; padding-top: 1em; }
+  #note { color: #555; font-size: .95em; margin-top: 1em; background: #f6f6f6; padding: .8em; border-radius: 8px; }
+  .hidden{ display:none !important; }
 
-  .y { color: #000000; }
-  .q { color: #dc143c; }
-  .r { color: #006400; }
-  .v { color: #ff1493; }
+  /* 発言者色（元のHTMLの class を使う前提） */
+  .y { color:#000; }  /* 山本太郎 */
+  .q { color:#dc143c; }  /* 質問者 */
+  .r { color:#006400; }  /* その他議員 */
+  .v { color:#ff1493; }  /* ボランティアなど */
+
+  /* ポップアッププレーヤー */
+  .time { color:#007bff; text-decoration: underline; cursor: pointer; }
+  #popupPlayer {
+    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    width: 50vw; height: calc(50vw * 9 / 16 + 40px);
+    background:#000; border-radius:10px; overflow:hidden;
+    box-shadow:0 4px 16px rgba(0,0,0,.5); z-index:9999;
+    display:flex; flex-direction:column; touch-action:none;
+  }
+  @media (max-width:768px){
+    #popupPlayer{ width:90vw; height: calc(90vw * 9 / 16 + 50px); }
+  }
+  #playerContainer{ flex:1; width:100%; position:relative; background:#000; }
+  #playerContainer iframe{
+    position:absolute; inset:0; width:100%; height:100%; border:none;
+  }
+  #dragHandle{
+    width:100%; height:40px; background: linear-gradient(to bottom,#bbb,#999);
+    display:flex; align-items:center; justify-content:center; cursor: grab;
+  }
+  .grip{ width:60px; height:6px; background:#666; border-radius:3px; }
+  #closePlayer{
+    background:#e53935; color:#fff; border:none; font-size:2em; font-weight:bold;
+    width:55px; height:55px; cursor:pointer; position:absolute; top:6px; right:6px;
+    border-radius:50%; z-index:3; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 3px 8px rgba(0,0,0,.4);
+  }
+  #closePlayer:hover{ background:#ff4444; transform: scale(1.06); }
+  #closePlayer:active{ transform: scale(.95); }
 </style>
 </head>
 <body>
 
 <h1>れいわ街宣・おしゃべり会全文検索ツール（非公式）</h1>
-<input type="text" id="search" placeholder="キーワードを入力してください">
+<input type="text" id="search" placeholder="キーワードを入力してください" />
 <div id="results"></div>
 <div id="viewer"></div>
 
+<!-- ファイル一覧（ { title, url, video } ） -->
 <script src="data/files.js"></script>
 
 <script>
+/* -----------------------
+   ユーティリティ
+------------------------*/
+
+// YouTube URL から videoId を取得（通常URL/短縮URL/すでにIDのいずれでもOK）
+function getVideoId(video) {
+  if (!video) return "";
+  if (/^[\w-]{11}$/.test(video)) return video; // 既にID
+  try {
+    const u = new URL(video);
+    if (u.hostname.includes('youtu.be')) return u.pathname.slice(1);
+    if (u.searchParams.get('v')) return u.searchParams.get('v');
+  } catch (_e) {}
+  // フォールバック（最後の / 区切り末尾をIDとみなす）
+  return video.split('/').pop();
+}
+
+// テキスト中で query の前後を切り出してスニペットを作る
+function snippetAround(text, index, len, context = 40) {
+  const start = Math.max(0, index - context);
+  const end = Math.min(text.length, index + len + context);
+  const before = text.slice(start, index);
+  const word = text.slice(index, index + len);
+  const after = text.slice(index + len, end);
+  return { before, word, after };
+}
+
+// innerText で検索して、ヒット配列（順番にカウント）を返す
+function findMatchesInPlainText(plain, query) {
+  if (!query) return [];
+  const re = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  const matches = [];
+  let m;
+  while ((m = re.exec(plain)) !== null) {
+    matches.push({ index: m.index, length: m[0].length });
+    if (m.index === re.lastIndex) re.lastIndex++; // 無限ループ防止
+  }
+  return matches;
+}
+
+// DOM のテキストノードを順に走査して置換（ハイライト/タイム化で共通利用）
+function replaceInTextNodes(root, regex, replacer) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) textNodes.push(node);
+
+  textNodes.forEach(n => {
+    const txt = n.nodeValue;
+    if (!txt) return;
+    let lastIndex = 0;
+    let m;
+    regex.lastIndex = 0;
+
+    const frag = document.createDocumentFragment();
+
+    while ((m = regex.exec(txt)) !== null) {
+      // 直前のプレーンテキスト
+      if (m.index > lastIndex) {
+        frag.appendChild(document.createTextNode(txt.slice(lastIndex, m.index)));
+      }
+      // 置換部分
+      const replacement = replacer(m);
+      if (replacement instanceof Node) {
+        frag.appendChild(replacement);
+      } else {
+        const span = document.createElement('span');
+        span.innerHTML = replacement;
+        // span の子をフラグメントに移動
+        while (span.firstChild) frag.appendChild(span.firstChild);
+      }
+      lastIndex = regex.lastIndex;
+      if (m.index === regex.lastIndex) regex.lastIndex++; // 安全策
+    }
+    // 残り
+    if (lastIndex < txt.length) {
+      frag.appendChild(document.createTextNode(txt.slice(lastIndex)));
+    }
+    if (frag.childNodes.length) n.parentNode.replaceChild(frag, n);
+  });
+}
+
+/* -----------------------
+   検索ロジック
+------------------------*/
+
 document.getElementById("search").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
   const resultsDiv = document.getElementById("results");
   resultsDiv.innerHTML = "";
-
   if (!query) return;
 
   const results = [];
@@ -55,23 +164,26 @@ document.getElementById("search").addEventListener("input", async (e) => {
     try {
       const res = await fetch(f.url);
       if (!res.ok) continue;
-      const text = await res.text();
 
-      const regex = new RegExp(`(.{0,40})(${query})(.{0,40})`, "gi");
-      let match;
-      let index = 0;
-      while ((match = regex.exec(text)) !== null) {
-        index++;
+      const html = await res.text();
+      // 検索は「見える文字」に限定（innerText）
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const plain = doc.body ? doc.body.innerText : "";
+
+      const hits = findMatchesInPlainText(plain, query);
+      hits.forEach((h, idx) => {
+        const snip = snippetAround(plain, h.index, h.length, 40);
         results.push({
           title: f.title,
           url: f.url,
           video: f.video,
-          before: match[1],
-          word: match[2],
-          after: match[3],
-          indexInFile: index // ✅ ファイル内でのヒット順
+          hitNumber: idx + 1,     // このファイル内での N 番目
+          before: snip.before,
+          word: snip.word,
+          after: snip.after
         });
-      }
+      });
+
     } catch (err) {
       console.error("読み込み失敗:", f.url, err);
     }
@@ -84,140 +196,129 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
   const note = document.createElement("div");
   note.id = "note";
-  note.innerHTML = `<strong>結果の見方：</strong><br>検索したキーワードを含む箇所の一覧が表示されます。<br>クリックすると全文が表示され、その箇所に自動スクロールします。`;
+  note.innerHTML = `<strong>結果の見方：</strong><br>
+    各行は見える文字中のヒット箇所です。クリックすると全文を開き、その箇所へ自動スクロールします。`;
   resultsDiv.appendChild(note);
 
-  for (const r of results) {
+  results.forEach(r => {
     const div = document.createElement("div");
     div.className = "result";
-    div.innerHTML = `<strong>${r.title}</strong>（${r.indexInFile}）<br>...${r.before}<span class="highlight">${r.word}</span>${r.after}...`;
+    div.innerHTML = `<strong>${r.title}</strong>（${r.hitNumber}）<br>
+      ...${r.before}<span class="highlight">${r.word}</span>${r.after}...`;
     div.addEventListener("click", () => showInViewer(r, query));
     resultsDiv.appendChild(div);
-  }
+  });
 });
+
+/* -----------------------
+   全文描画 & 正確スクロール
+------------------------*/
 
 async function showInViewer(result, query) {
   const viewer = document.getElementById("viewer");
   const res = await fetch(result.url);
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(await res.text(), "text/html");
+  const doc = new DOMParser().parseFromString(await res.text(), "text/html");
 
-  let text = doc.body.innerHTML;
-
-  // タイムリンク化
-  text = text.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
-    '<span class="time" data-time="$1">$1</span>');
-
-  // ハイライト + 番号付け
-  if (query) {
-    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp(`(${escaped})(?![^<]*>)`, 'gi');
-    let count = 0;
-    text = text.replace(re, m => `<span class="highlight" data-index="${++count}">${m}</span>`);
-  }
-
-  viewer.innerHTML = `
-    <h2>${result.title}</h2>
-    <div class="talk-text">${text}</div>
+  // 1) 本文を挿入（元の装飾を保つ）
+  viewer.innerHTML = `<h2>${result.title}</h2><div class="talk-text"></div>
     <div id="popupPlayer" class="hidden">
       <div id="dragHandle"><div class="grip"></div></div>
       <button id="closePlayer">×</button>
       <div id="playerContainer"></div>
-    </div>
-  `;
+    </div>`;
 
-  const style = document.createElement("style");
-  style.textContent = `
-    .time { color: #007bff; text-decoration: underline; cursor: pointer; }
+  const talk = viewer.querySelector(".talk-text");
+  talk.innerHTML = doc.body ? doc.body.innerHTML : "";
 
-    #popupPlayer {
-      position: fixed;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 50vw;
-      height: calc(50vw * 9 / 16 + 40px);
-      background: #000;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      touch-action: none;
-    }
-    @media (max-width: 768px) {
-      #popupPlayer {
-        width: 90vw;
-        height: calc(90vw * 9 / 16 + 50px);
-      }
-    }
-    #playerContainer { flex-grow: 1; width: 100%; position: relative; background: #000; }
-    #playerContainer iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
-    #dragHandle { width: 100%; height: 40px; background: linear-gradient(to bottom, #bbb, #999); display: flex; align-items: center; justify-content: center; cursor: grab; }
-    .grip { width: 60px; height: 6px; background: #666; border-radius: 3px; }
-    #closePlayer { background: #e53935; color: white; border: none; font-size: 2em; font-weight: bold; width: 55px; height: 55px; cursor: pointer; position: absolute; top: 6px; right: 6px; border-radius: 50%; z-index: 3; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(0,0,0,0.4); }
-    #closePlayer:hover { background: #ff4444; transform: scale(1.1); }
-    #closePlayer:active { transform: scale(0.95); }
-  `;
-  document.head.appendChild(style);
+  // 2) タイム（hh:mm:ss）をテキストノード単位でリンク化
+  const timeRe = /\b\d{2}:\d{2}:\d{2}\b/g;
+  replaceInTextNodes(talk, timeRe, (m) => {
+    const span = document.createElement('span');
+    span.className = 'time';
+    span.dataset.time = m[0];
+    span.textContent = m[0];
+    return span;
+  });
 
+  // 3) 検索語をテキストノード単位でハイライト（順番に data-index を付与）
+  let highlightCount = 0;
+  if (query) {
+    const qRe = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    replaceInTextNodes(talk, qRe, (m) => {
+      highlightCount += 1;
+      const wrap = document.createElement('span');
+      wrap.className = 'highlight';
+      wrap.dataset.index = String(highlightCount);
+      wrap.textContent = m[0];
+      return wrap;
+    });
+  }
+
+  // 4) クリックしたヒット番号へ正確にスクロール
+  setTimeout(() => {
+    const target = viewer.querySelector(`.highlight[data-index="${result.hitNumber}"]`);
+    if (target) target.scrollIntoView({ behavior:"smooth", block:"center" });
+  }, 200);
+
+  // 5) ポップアップ再生（元動画の再生数にカウントされる通常の YouTube 埋め込み）
   const popup = document.getElementById("popupPlayer");
   const playerContainer = document.getElementById("playerContainer");
+  const videoId = getVideoId(result.video);
 
-  // ▶ タイムクリックで再生
-  document.querySelectorAll(".time").forEach(el => {
+  talk.querySelectorAll(".time").forEach(el => {
     el.addEventListener("click", () => {
-      const time = el.dataset.time;
-      const [h, m, s] = time.split(":").map(Number);
-      const seconds = h * 3600 + m * 60 + s;
-      const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
-      const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
-
-      playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      const [h,m,s] = el.dataset.time.split(":").map(Number);
+      const start = h*3600 + m*60 + s;
+      const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${start}`;
+      playerContainer.innerHTML = `<iframe src="${src}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
       popup.classList.remove("hidden");
-      popup.style.transform = "none";
+      // デフォルト位置を中央下に（ドラッグ前提）
+      popup.style.left = "50%";
+      popup.style.top = "auto";
+      popup.style.bottom = "10px";
+      popup.style.transform = "translateX(-50%)";
     });
   });
 
-  // ❌ 閉じる
   document.getElementById("closePlayer").addEventListener("click", () => {
     popup.classList.add("hidden");
     playerContainer.innerHTML = "";
   });
 
-  // ドラッグ移動
-  let offsetX, offsetY, isDragging = false;
+  // 6) ドラッグ移動
+  let isDragging = false, offsetX = 0, offsetY = 0;
   const dragHandle = document.getElementById("dragHandle");
-  const startDrag = (x, y) => {
+
+  const startDrag = (x,y) => {
     isDragging = true;
     const rect = popup.getBoundingClientRect();
     offsetX = x - rect.left;
     offsetY = y - rect.top;
     popup.style.transition = "none";
+    popup.style.transform = "none"; // 以後は left/top で移動
   };
-  const moveDrag = (x, y) => {
+  const moveDrag = (x,y) => {
     if (!isDragging) return;
     popup.style.left = (x - offsetX) + "px";
-    popup.style.top = (y - offsetY) + "px";
+    popup.style.top  = (y - offsetY) + "px";
     popup.style.bottom = "auto";
   };
   const stopDrag = () => { isDragging = false; };
 
-  dragHandle.addEventListener("mousedown", (e) => startDrag(e.clientX, e.clientY));
-  document.addEventListener("mousemove", (e) => moveDrag(e.clientX, e.clientY));
-  document.addEventListener("mouseup", stopDrag);
-  dragHandle.addEventListener("touchstart", (e) => { const t = e.touches[0]; startDrag(t.clientX, t.clientY); });
-  document.addEventListener("touchmove", (e) => { const t = e.touches[0]; moveDrag(t.clientX, t.clientY); });
-  document.addEventListener("touchend", stopDrag);
+  dragHandle.addEventListener("mousedown", e => startDrag(e.clientX, e.clientY));
+  document.addEventListener("mousemove", e => moveDrag(e.clientX, e.clientY));
+  document.addEventListener("mouseup",   stopDrag);
 
-  // ✅ クリックしたヒット番号に対応してスクロール
-  setTimeout(() => {
-    const target = viewer.querySelector(`[data-index="${result.indexInFile}"]`);
-    if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, 400);
+  dragHandle.addEventListener("touchstart", e => {
+    const t = e.touches[0]; startDrag(t.clientX, t.clientY);
+  }, {passive:true});
+  document.addEventListener("touchmove", e => {
+    const t = e.touches[0]; moveDrag(t.clientX, t.clientY);
+  }, {passive:true});
+  document.addEventListener("touchend",  stopDrag);
 }
 </script>
 
 </body>
 </html>
+      
