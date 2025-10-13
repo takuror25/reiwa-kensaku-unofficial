@@ -131,9 +131,40 @@ async function showInViewer(result, keywords) {
 
   let text = doc.body.innerHTML;
 
-// ✅ 全文構築後にタイムをリンク化（順番変更）
-finalText = finalText.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
-  '<span class="time" data-time="$1">$1</span>');
+  // ✅ 各段落ごとにAND条件でハイライト
+  const paragraphs = text.split(/(<\/p>)/g);
+  let paragraphIndex = 0;
+  let finalText = "";
+
+  for (let i = 0; i < paragraphs.length; i++) {
+    let p = paragraphs[i];
+    if (!p.trim()) continue;
+
+    const plain = p.replace(/<[^>]+>/g, "");
+    if (keywords.every(k => plain.includes(k))) {
+      paragraphIndex++;
+      for (const k of keywords) {
+        const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        p = p.replace(new RegExp(`(${escaped})(?![^<]*>)`, "gi"),
+          '<span class="highlight" data-hit="' + paragraphIndex + '">$1</span>');
+      }
+    }
+    finalText += p;
+  }
+
+  // ✅ 全文構築後にタイムをリンク化（←この位置に移動！）
+  finalText = finalText.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
+    '<span class="time" data-time="$1">$1</span>');
+
+  viewer.innerHTML = `
+    <h2>${result.title}</h2>
+    <div class="talk-text">${finalText}</div>
+    <div id="popupPlayer" class="hidden">
+      <div id="dragHandle"><div class="grip"></div></div>
+      <button id="closePlayer">×</button>
+      <div id="playerContainer"></div>
+    </div>
+  `;
 
   // ✅ 各段落ごとにAND条件でハイライト
   const paragraphs = text.split(/(<\/p>)/g);
