@@ -131,9 +131,9 @@ async function showInViewer(result, keywords) {
 
   let text = doc.body.innerHTML;
 
-  // タイムをリンク化
-  text = text.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
-    '<span class="time" data-time="$1">$1</span>');
+// ✅ 全文構築後にタイムをリンク化（順番変更）
+finalText = finalText.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
+  '<span class="time" data-time="$1">$1</span>');
 
   // ✅ 各段落ごとにAND条件でハイライト
   const paragraphs = text.split(/(<\/p>)/g);
