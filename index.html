@@ -26,10 +26,10 @@
   #note { color: #555; font-size: 0.95em; margin-top: 1em; background: #f6f6f6; padding: 0.8em; border-radius: 8px; }
   .hidden { display: none !important; }
 
-  .y { color: #000000; }   /* 山本太郎 */
-  .q { color: #dc143c; }   /* 質問者 */
-  .r { color: #006400; }   /* その他議員 */
-  .v { color: #ff1493; }   /* ボランティアなど */
+  .y { color: #000000; }
+  .q { color: #dc143c; }
+  .r { color: #006400; }
+  .v { color: #ff1493; }
 </style>
 </head>
 <body>
@@ -39,7 +39,6 @@
 <div id="results"></div>
 <div id="viewer"></div>
 
-<!-- ✅ ファイル一覧 -->
 <script src="data/files.js"></script>
 
 <script>
@@ -60,9 +59,9 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
       const regex = new RegExp(`(.{0,40})(${query})(.{0,40})`, "gi");
       let match;
-      let matchIndex = 0;
+      let index = 0;
       while ((match = regex.exec(text)) !== null) {
-        matchIndex++;
+        index++;
         results.push({
           title: f.title,
           url: f.url,
@@ -70,7 +69,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
           before: match[1],
           word: match[2],
           after: match[3],
-          hitNumber: matchIndex  // ✅ 各ファイル内のヒット番号を記録
+          indexInFile: index // ✅ ファイル内でのヒット順
         });
       }
     } catch (err) {
@@ -85,13 +84,13 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
   const note = document.createElement("div");
   note.id = "note";
-  note.innerHTML = `<strong>結果の見方：</strong><br>検索したキーワードを含む箇所の一覧が表示されます。<br>クリックすると全文が表示され、該当箇所に自動スクロールします。`;
+  note.innerHTML = `<strong>結果の見方：</strong><br>検索したキーワードを含む箇所の一覧が表示されます。<br>クリックすると全文が表示され、その箇所に自動スクロールします。`;
   resultsDiv.appendChild(note);
 
   for (const r of results) {
     const div = document.createElement("div");
     div.className = "result";
-    div.innerHTML = `<strong>${r.title}</strong>（${r.hitNumber} 回目）<br>...${r.before}<span class="highlight">${r.word}</span>${r.after}...`;
+    div.innerHTML = `<strong>${r.title}</strong>（${r.indexInFile}）<br>...${r.before}<span class="highlight">${r.word}</span>${r.after}...`;
     div.addEventListener("click", () => showInViewer(r, query));
     resultsDiv.appendChild(div);
   }
@@ -105,16 +104,16 @@ async function showInViewer(result, query) {
 
   let text = doc.body.innerHTML;
 
-  // ✅ タイムをクリック可能に変換
+  // タイムリンク化
   text = text.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
     '<span class="time" data-time="$1">$1</span>');
 
-  // ✅ 検索語をハイライト（すべてに番号を付与）
+  // ハイライト + 番号付け
   if (query) {
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const re = new RegExp(`(${escaped})(?![^<]*>)`, 'gi');
-    let hitCount = 0;
-    text = text.replace(re, m => `<span class="highlight" data-hit="${++hitCount}">${m}</span>`);
+    let count = 0;
+    text = text.replace(re, m => `<span class="highlight" data-index="${++count}">${m}</span>`);
   }
 
   viewer.innerHTML = `
@@ -127,7 +126,6 @@ async function showInViewer(result, query) {
     </div>
   `;
 
-  // ✅ スタイル
   const style = document.createElement("style");
   style.textContent = `
     .time { color: #007bff; text-decoration: underline; cursor: pointer; }
@@ -148,53 +146,17 @@ async function showInViewer(result, query) {
       flex-direction: column;
       touch-action: none;
     }
-
     @media (max-width: 768px) {
       #popupPlayer {
         width: 90vw;
         height: calc(90vw * 9 / 16 + 50px);
       }
     }
-
     #playerContainer { flex-grow: 1; width: 100%; position: relative; background: #000; }
     #playerContainer iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
-
-    #dragHandle {
-      width: 100%;
-      height: 40px;
-      background: linear-gradient(to bottom, #bbb, #999);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: grab;
-    }
-
-    .grip {
-      width: 60px;
-      height: 6px;
-      background: #666;
-      border-radius: 3px;
-    }
-
-    #closePlayer {
-      background: #e53935;
-      color: white;
-      border: none;
-      font-size: 2em;
-      font-weight: bold;
-      width: 55px;
-      height: 55px;
-      cursor: pointer;
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      border-radius: 50%;
-      z-index: 3;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.4);
-    }
+    #dragHandle { width: 100%; height: 40px; background: linear-gradient(to bottom, #bbb, #999); display: flex; align-items: center; justify-content: center; cursor: grab; }
+    .grip { width: 60px; height: 6px; background: #666; border-radius: 3px; }
+    #closePlayer { background: #e53935; color: white; border: none; font-size: 2em; font-weight: bold; width: 55px; height: 55px; cursor: pointer; position: absolute; top: 6px; right: 6px; border-radius: 50%; z-index: 3; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(0,0,0,0.4); }
     #closePlayer:hover { background: #ff4444; transform: scale(1.1); }
     #closePlayer:active { transform: scale(0.95); }
   `;
@@ -224,7 +186,7 @@ async function showInViewer(result, query) {
     playerContainer.innerHTML = "";
   });
 
-  // 🖱 ドラッグ移動
+  // ドラッグ移動
   let offsetX, offsetY, isDragging = false;
   const dragHandle = document.getElementById("dragHandle");
   const startDrag = (x, y) => {
@@ -245,24 +207,17 @@ async function showInViewer(result, query) {
   dragHandle.addEventListener("mousedown", (e) => startDrag(e.clientX, e.clientY));
   document.addEventListener("mousemove", (e) => moveDrag(e.clientX, e.clientY));
   document.addEventListener("mouseup", stopDrag);
-  dragHandle.addEventListener("touchstart", (e) => {
-    const t = e.touches[0];
-    startDrag(t.clientX, t.clientY);
-  });
-  document.addEventListener("touchmove", (e) => {
-    const t = e.touches[0];
-    moveDrag(t.clientX, t.clientY);
-  });
+  dragHandle.addEventListener("touchstart", (e) => { const t = e.touches[0]; startDrag(t.clientX, t.clientY); });
+  document.addEventListener("touchmove", (e) => { const t = e.touches[0]; moveDrag(t.clientX, t.clientY); });
   document.addEventListener("touchend", stopDrag);
 
-  // ✅ 該当箇所にスクロール（クリックしたヒット番号に対応）
+  // ✅ クリックしたヒット番号に対応してスクロール
   setTimeout(() => {
-    const target = viewer.querySelector(`[data-hit="${result.hitNumber}"]`);
+    const target = viewer.querySelector(`[data-index="${result.indexInFile}"]`);
     if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, 300);
+  }, 400);
 }
 </script>
 
 </body>
 </html>
-      
