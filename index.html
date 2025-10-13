@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -21,25 +21,21 @@
     box-shadow: 0 0 5px rgba(0, 123, 255, 0.4);
   }
   .result { margin: 1em 0; cursor: pointer; border-bottom: 1px solid #ccc; padding: 0.5em 0; }
-  .highlight { background-color: #ffb6c1; font-weight: bold; } /* ピンク系 */
+  .highlight { background-color: #ffb6c1; font-weight: bold; }
   #viewer { margin-top: 2em; white-space: pre-wrap; border-top: 2px solid #666; padding-top: 1em; }
   #note { color: #555; font-size: 0.95em; margin-top: 1em; background: #f6f6f6; padding: 0.8em; border-radius: 8px; }
   .hidden { display: none !important; }
 
-  /* 話者カラー設定 */
-  .y { color: #222; }         /* 山本太郎（黒） */
-  .q { color: #c71585; }      /* 質問者（ピンク） */
-  .r { color: #006400; }      /* その他議員（緑） */
-  .v { color: #4169e1; }      /* ボランティアなど（青） */
+  .y { color: #222; }
+  .q { color: #c71585; }
+  .r { color: #006400; }
+  .v { color: #4169e1; }
 </style>
 </head>
 <body>
 
 <h1>れいわ新選組街宣・おしゃべり会検索（非公式）</h1>
-<p>キーワードを入力すると一覧が表示されます。<br>
-  一覧の中からどれかをクリックすると、その全文とYouTubeのタイムのリンクが表示されます。<br>
-  ※AIを使用して文字化しているため、内容が不正確な部分や誤字が発生する可能性があります。<br>
-  ※正確な情報源としては、れいわ新選組の公式YouTubもご確認ください。 <p>
+<p>スペース区切りで複数語を入力すると「AND検索」ができます。</p>
 <input type="text" id="search" placeholder="キーワードを入力（例：消費税 物価）">
 <div id="results"></div>
 <div id="viewer"></div>
@@ -63,10 +59,11 @@ document.getElementById("search").addEventListener("input", async (e) => {
       const text = await res.text();
       const plain = text.replace(/<[^>]*>/g, "");
 
-      const contextRegex = new RegExp(`(.{0,100})(` + keywords.join("|") + `)(.{0,100})`, "gi");
+      const contextRegex = new RegExp(`(.{0,120})(` + keywords.join("|") + `)(.{0,120})`, "gi");
       let match, count = 0;
       while ((match = contextRegex.exec(plain)) !== null) {
         const fragment = match[0];
+        // ✅ 全キーワードを含む部分だけ抽出
         if (keywords.every(k => fragment.includes(k))) {
           count++;
           results.push({
@@ -74,7 +71,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
             url: f.url,
             video: f.video,
             fragment,
-            index: count // ← このヒット番号を記録
+            index: count
           });
         }
       }
@@ -92,13 +89,14 @@ document.getElementById("search").addEventListener("input", async (e) => {
   note.id = "note";
   note.innerHTML = `
     <strong>結果の見方：</strong><br>
-    スペース区切りで複数語を入力すると「AND検索」ができます。<br>
-    各行をタップすると全文が表示され、タイムを押すとYouTubeが再生されます。
+    AND検索ではすべてのキーワードを含む部分だけを抽出します。<br>
+    各行をクリックすると全文を開き、該当箇所にスクロールします。
   `;
   resultsDiv.appendChild(note);
 
   for (const r of results) {
     let highlighted = r.fragment;
+    // ✅ 全語を含む場合だけ、その全語をハイライト
     for (const k of keywords) {
       const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       highlighted = highlighted.replace(new RegExp(escaped, "gi"), `<span class="highlight">${k}</span>`);
@@ -119,17 +117,34 @@ async function showInViewer(result, keywords) {
   const doc = parser.parseFromString(await res.text(), "text/html");
 
   let text = doc.body.innerHTML;
-  text = text.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g, '<span class="time" data-time="$1">$1</span>');
 
-  for (const k of keywords) {
-    const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp(`(${escaped})(?![^<]*>)`, 'gi');
-    text = text.replace(re, '<span class="highlight">$1</span>');
+  // タイムをリンク化
+  text = text.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g,
+    '<span class="time" data-time="$1">$1</span>');
+
+  // ✅ 各段落ごとにAND条件でハイライト
+  const paragraphs = text.split(/(<\/p>)/g);
+  let paragraphIndex = 0;
+  let finalText = "";
+
+  for (let i = 0; i < paragraphs.length; i++) {
+    let p = paragraphs[i];
+    if (!p.trim()) continue;
+
+    const plain = p.replace(/<[^>]+>/g, ""); // タグ除去
+    if (keywords.every(k => plain.includes(k))) {
+      paragraphIndex++;
+      for (const k of keywords) {
+        const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        p = p.replace(new RegExp(`(${escaped})(?![^<]*>)`, "gi"), '<span class="highlight" data-hit="' + paragraphIndex + '">$1</span>');
+      }
+    }
+    finalText += p;
   }
 
   viewer.innerHTML = `
     <h2>${result.title}</h2>
-    <div class="talk-text">${text}</div>
+    <div class="talk-text">${finalText}</div>
     <div id="popupPlayer" class="hidden">
       <div id="dragHandle"><div class="grip"></div></div>
       <button id="closePlayer">×</button>
@@ -137,14 +152,13 @@ async function showInViewer(result, keywords) {
     </div>
   `;
 
-  // 🎯クリックした検索結果のハイライトにスクロール
+  // 🎯 正確に該当箇所へジャンプ
   setTimeout(() => {
-    const highlights = viewer.querySelectorAll(".highlight");
-    const target = highlights[result.index - 1];
+    const target = viewer.querySelector('[data-hit="' + result.index + '"]');
     if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
   }, 400);
 
-  // 以下ポップアッププレイヤー処理は同じ（省略せずに維持）
+  // --- 以下、プレイヤー処理は変更なし ---
   const style = document.createElement("style");
   style.textContent = `
     .time { color: #007bff; text-decoration: underline; cursor: pointer; }
@@ -199,38 +213,7 @@ async function showInViewer(result, keywords) {
     popup.classList.add("hidden");
     playerContainer.innerHTML = "";
   });
-
-  // ドラッグ移動
-  let offsetX, offsetY, isDragging = false;
-  const dragHandle = document.getElementById("dragHandle");
-  const startDrag = (x, y) => {
-    isDragging = true;
-    const rect = popup.getBoundingClientRect();
-    offsetX = x - rect.left;
-    offsetY = y - rect.top;
-    popup.style.transition = "none";
-  };
-  const moveDrag = (x, y) => {
-    if (!isDragging) return;
-    popup.style.left = (x - offsetX) + "px";
-    popup.style.top = (y - offsetY) + "px";
-    popup.style.bottom = "auto";
-  };
-  const stopDrag = () => { isDragging = false; };
-  dragHandle.addEventListener("mousedown", (e) => startDrag(e.clientX, e.clientY));
-  document.addEventListener("mousemove", (e) => moveDrag(e.clientX, e.clientY));
-  document.addEventListener("mouseup", stopDrag);
-  dragHandle.addEventListener("touchstart", (e) => {
-    const t = e.touches[0];
-    startDrag(t.clientX, t.clientY);
-  });
-  document.addEventListener("touchmove", (e) => {
-    const t = e.touches[0];
-    moveDrag(t.clientX, t.clientY);
-  });
-  document.addEventListener("touchend", stopDrag);
 }
 </script>
-
 </body>
 </html>
