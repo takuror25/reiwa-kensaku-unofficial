@@ -154,7 +154,8 @@ async function showInViewer(result, keywords) {
 
   // ✅ 全文構築後にタイムをリンク化
   // ✅ 修正版：タグの内外問わず全タイムをリンク化
-finalText = finalText.replace(/(\d{2}:\d{2}:\d{2})/g,
+// ✅ タイムの後に <br> があっても正しくリンク化
+finalText = finalText.replace(/(\d{2}:\d{2}:\d{2})(?=<br>|<br\s*\/?>|\s|<\/span>|$)/g,
   '<span class="time" data-time="$1">$1</span>');
   
   // HTMLに挿入
