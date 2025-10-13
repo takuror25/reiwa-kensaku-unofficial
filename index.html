@@ -33,7 +33,7 @@
 .highlight {
   background-color: #FFCCE5;
   font-weight: bold;
-}  /* ボランティアなど */
+}  
 
   /* ポップアッププレーヤー */
   .time { color:#007bff; text-decoration: underline; cursor: pointer; }
@@ -208,7 +208,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
   const note = document.createElement("div");
   note.id = "note";
   note.innerHTML = `<strong>結果の見方：</strong><br>
-    各行は見える文字中のヒット箇所です。クリックすると全文を開き、その箇所へ自動スクロールします。`;
+    検索結果の一覧です。<br>どれかをクリックすると、全文を開きその箇所に移動します。`;
   resultsDiv.appendChild(note);
 
   results.forEach(r => {
