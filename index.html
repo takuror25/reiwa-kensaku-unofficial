@@ -26,10 +26,10 @@
   #note { color: #555; font-size: 0.95em; margin-top: 1em; background: #f6f6f6; padding: 0.8em; border-radius: 8px; }
   .hidden { display: none !important; }
 
- .y { color: #222222; }   /* 山本太郎（黒に近い濃グレー） */
-.q { color: #E91E63; }   /* 質問者（れいわピンク） */
-.r { color: #6A1B9A; }   /* その他議員（紫寄りピンク） */
-.v { color: #AD1457; }   /* ボランティアなど（濃いローズ） */
+ .y { color: #222222; }   
+.q { color: #E91E63; }   
+.r { color: #6A1B9A; }   
+.v { color: #AD1457; }  
 
 .time {
   color: #1565C0;
@@ -103,7 +103,8 @@ document.getElementById("search").addEventListener("input", async (e) => {
   note.innerHTML = `
     <strong>結果の見方：</strong><br>
     検索したワードを含む部分を一覧で表示します。<br>
-    一覧の中からクリックすると全文が開き、該当箇所にスクロールします。
+    一覧の中からクリックすると全文が開き、該当箇所にスクロールします。<br>
+    タイムをクリックすると該当部分のYouTube動画が再生されます。
   `;
   resultsDiv.appendChild(note);
 
