@@ -95,7 +95,6 @@
 
 <script src="data/files.js?v=3"></script>
 
-
 <script>
 // 「ページの先頭に戻るボタン」を作成してページに追加する
 const backToTopButton = document.createElement('button');
@@ -340,8 +339,6 @@ async function showInViewer(result, keywords) {
       const targetElement = viewer.querySelector(`#jump-target`);
       if (targetElement) {
         targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        // ★★★ここが最終修正ポイント！★★★
-        // 床板(p)ではなく、俳優本人(span)のマイクを探す
         const firstTimeLink = targetElement.querySelector('.time');
         
         if (firstTimeLink) {
@@ -395,6 +392,12 @@ async function showInViewer(result, keywords) {
   }
 }
 </script>
+  
+</body>
+</html>
+
+ 
+
   
 </body>
 </html>
