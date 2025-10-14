@@ -125,154 +125,159 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
 async function showInViewer(result, keywords) {
   const viewer = document.getElementById("viewer");
-  const res = await fetch(result.url);
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(await res.text(), "text/html");
+  viewer.innerHTML = "読み込み中..."; // ローディング表示
 
-  let text = doc.body.innerHTML;
+  try {
+    // --- 1. 外部HTMLファイルを取得して、中身を「本物の部品」として扱う ---
+    const res = await fetch(result.url);
+    const text = await res.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, "text/html");
+    const contentBody = doc.body; // bodyタグの中身をまるごと取得
 
-  // 各段落ごとにAND条件でハイライト
-  const paragraphs = text.split(/(<\/p>)/g);
-  let paragraphIndex = 0;
-  let finalText = "";
+    // --- 2. テキストを歩き回りながら、キーワードをハイライトする関数 ---
+    function highlightKeywords(node) {
+      if (node.nodeType === 3) { // 3はテキストノード（ただの文字）
+        const plain = node.textContent;
+        // 親の段落がキーワードを全て含んでいるかチェック
+        if (keywords.every(k => node.parentNode.textContent.includes(k))) {
+            const frag = document.createDocumentFragment();
+            let lastIndex = 0;
+            
+            // キーワードにマッチする部分を探す正規表現
+            const keywordsRegex = new RegExp(keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
 
-  for (let i = 0; i < paragraphs.length; i++) {
-    let p = paragraphs[i];
-    if (!p.trim()) continue;
+            plain.replace(keywordsRegex, (match, offset) => {
+                if (offset > lastIndex) {
+                    frag.appendChild(document.createTextNode(plain.slice(lastIndex, offset)));
+                }
+                const span = document.createElement("span");
+                span.className = "highlight";
+                span.textContent = match;
+                frag.appendChild(span);
+                lastIndex = offset + match.length;
+            });
 
-    const plain = p.replace(/<[^>]+>/g, "");
-    if (keywords.every(k => plain.includes(k))) {
-      paragraphIndex++;
-      for (const k of keywords) {
-        const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        p = p.replace(new RegExp(`(${escaped})(?![^<]*>)`, "gi"),
-          '<span class="highlight" data-hit="' + paragraphIndex + '">$1</span>');
-      }
-    }
-    finalText += p;
-  }
-
-  // ✅ 全文構築後にタイムをリンク化
-  // ✅ 修正版：タグの内外問わず全タイムをリンク化
-// ✅ タイムの後に <br> があっても正しくリンク化
-// ✅ タイムの後に <br> があっても正しくリンク化
-
-// ✅ finalText を DOM に入れてから、テキストノードの時刻を <span class="time"> に変換
-const tempDiv = document.createElement("div");
-tempDiv.innerHTML = finalText;
-
-function linkifyTimeNodes(node) {
-  // テキストノードなら、タイムスタンプを探してリンク化する
-  if (node.nodeType === 3) { // 3はテキストノードのこと
-    const regex = /(\d{2}:\d{2}:\d{2})/g;
-    if (regex.test(node.textContent)) {
-      const frag = document.createDocumentFragment();
-      let lastIndex = 0;
-      // 正規表現にマッチした部分を置換していく
-      node.textContent.replace(regex, (match, time, offset) => {
-        // マッチした部分より前のテキストを追加
-        if (offset > lastIndex) {
-          frag.appendChild(document.createTextNode(node.textContent.slice(lastIndex, offset)));
+            if (lastIndex < plain.length) {
+                frag.appendChild(document.createTextNode(plain.slice(lastIndex)));
+            }
+            node.parentNode.replaceChild(frag, node);
         }
-        // タイムスタンプをspanタグで囲んでリンクにする
-        const span = document.createElement("span");
-        span.className = "time";
-        span.dataset.time = time;
-        span.textContent = time;
-        frag.appendChild(span);
-        lastIndex = offset + match.length;
-      });
-      // 残りのテキストを追加
-      if (lastIndex < node.textContent.length) {
-        frag.appendChild(document.createTextNode(node.textContent.slice(lastIndex)));
+      } else if (node.nodeType === 1 && node.childNodes) {
+        // テキストノード以外なら、その子要素に対して同じ処理を繰り返す
+        [...node.childNodes].forEach(highlightKeywords);
       }
-      // 元のテキストノードを、新しく作った要素群に置き換える
-      node.parentNode.replaceChild(frag, node);
     }
-  } 
-  // 要素ノード（<p>タグなど）で、子要素があれば、その子要素に対しても同じ処理を繰り返す
-  else if (node.nodeType === 1 && node.childNodes.length > 0) {
-    // ★★★ここが修正点！★★★
-    // ループ中に中身を書き換えても大丈夫なように、リストのコピーを作ってからループする
-    [...node.childNodes].forEach(linkifyTimeNodes);
-  }
-}
-linkifyTimeNodes(tempDiv);
-finalText = tempDiv.innerHTML; 
 
-  
-  // HTMLに挿入
-  viewer.innerHTML = `
-    <h2>${result.title}</h2>
-    <div class="talk-text">${finalText}</div>
-    <div id="popupPlayer" class="hidden">
-      <div id="dragHandle"><div class="grip"></div></div>
-      <button id="closePlayer">×</button>
-      <div id="playerContainer"></div>
-    </div>
-  `;
+    // --- 3. テキストを歩き回りながら、タイムスタンプをリンク化する関数 ---
+    function linkifyTimeNodes(node) {
+      if (node.nodeType === 3) { // テキストノード
+        const regex = /(\d{2}:\d{2}:\d{2})/g;
+        if (regex.test(node.textContent)) {
+          const frag = document.createDocumentFragment();
+          let lastIndex = 0;
+          node.textContent.replace(regex, (match, time, offset) => {
+            if (offset > lastIndex) {
+              frag.appendChild(document.createTextNode(node.textContent.slice(lastIndex, offset)));
+            }
+            const span = document.createElement("span");
+            span.className = "time";
+            span.dataset.time = time;
+            span.textContent = time;
+            frag.appendChild(span);
+            lastIndex = offset + match.length;
+          });
+          if (lastIndex < node.textContent.length) {
+            frag.appendChild(document.createTextNode(node.textContent.slice(lastIndex)));
+          }
+          node.parentNode.replaceChild(frag, node);
+        }
+      } else if (node.nodeType === 1 && node.childNodes) {
+        // 子要素に対しても同じ処理を繰り返す
+        [...node.childNodes].forEach(linkifyTimeNodes);
+      }
+    }
 
-  // ✅ この時点でDOMが生成されているのでクリックイベント登録
-  document.querySelectorAll(".time").forEach(el => {
-    el.addEventListener("click", () => {
-      const time = el.dataset.time;
-      const [h, m, s] = time.split(":").map(Number);
-      const seconds = h * 3600 + m * 60 + s;
-      const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
-      const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
+    // --- 4. 取得したHTML部品に、ハイライト処理とリンク化処理を実行 ---
+    highlightKeywords(contentBody);
+    linkifyTimeNodes(contentBody);
+
+    // --- 5. 加工済みのHTML部品をページに表示 ---
+    viewer.innerHTML = `
+      <h2>${result.title}</h2>
+      <div class="talk-text"></div>
+      <div id="popupPlayer" class="hidden">
+        <div id="dragHandle"><div class="grip"></div></div>
+        <button id="closePlayer">×</button>
+        <div id="playerContainer"></div>
+      </div>
+    `;
+    // contentBodyの中身（子要素たち）を talk-text div に移動
+    viewer.querySelector('.talk-text').append(...contentBody.childNodes);
+    
+
+    // --- 6. ページに表示されたタイムスタンプにクリック機能を設定 ---
+    viewer.querySelectorAll(".time").forEach(el => {
+      el.addEventListener("click", () => {
+        const time = el.dataset.time;
+        const [h, m, s] = time.split(":").map(Number);
+        const seconds = h * 3600 + m * 60 + s;
+        const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
+        const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
+        
+        const popup = document.getElementById("popupPlayer");
+        const playerContainer = document.getElementById("playerContainer");
+        playerContainer.innerHTML = `<iframe width="560" height="315" src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+        popup.classList.remove("hidden");
+      });
+    });
+    
+    // --- 7. ポップアップを閉じる機能を設定 ---
+    document.getElementById("closePlayer").addEventListener("click", () => {
       const popup = document.getElementById("popupPlayer");
       const playerContainer = document.getElementById("playerContainer");
-      playerContainer.innerHTML = `<iframe src="${embedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-      popup.classList.remove("hidden");
+      popup.classList.add("hidden");
+      playerContainer.innerHTML = ""; // プレイヤーを空にして停止
     });
-  });
-
-  // 🎯 該当箇所にジャンプ＆自動再生
-  setTimeout(() => {
-    const targetText = result.fragment.slice(0, 30);
-    const highlights = viewer.querySelectorAll(".highlight");
-    for (const h of highlights) {
-      if (h.parentElement.textContent.includes(targetText)) {
-        h.scrollIntoView({ behavior: "smooth", block: "center" });
-        break;
+    
+    // --- 8. 該当箇所にジャンプ ---
+    setTimeout(() => {
+      const firstHighlight = viewer.querySelector(".highlight");
+      if (firstHighlight) {
+        firstHighlight.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    }
-  }, 300);
+    }, 100);
 
-  // --- ポップアップ用のスタイルと閉じる処理 ---
-  const style = document.createElement("style");
-  style.textContent = `
-    .time { color: #007bff; text-decoration: underline; cursor: pointer; }
-    #popupPlayer {
-      position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
-      width: 50vw; height: calc(50vw * 9 / 16 + 40px);
-      background: #000; border-radius: 10px; overflow: hidden;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 9999;
-      display: flex; flex-direction: column;
+    // --- ポップアップ用のスタイル（一度だけ追加されるように調整） ---
+    if (!document.getElementById('popup-player-style')) {
+        const style = document.createElement("style");
+        style.id = 'popup-player-style';
+        style.textContent = `
+            #popupPlayer {
+              position: fixed; bottom: 10px; right: 10px;
+              width: 50vw; max-width: 560px;
+              background: #000; border-radius: 10px; overflow: hidden;
+              box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 9999;
+              display: flex; flex-direction: column;
+            }
+            #playerContainer { position: relative; width: 100%; padding-top: 56.25%; /* 16:9 Aspect Ratio */ }
+            #playerContainer iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+            #closePlayer {
+              background: #e53935; color: white; border: none; font-size: 1.5em;
+              cursor: pointer; position: absolute; top: -15px; right: -15px;
+              width: 30px; height: 30px; border-radius: 50%; z-index: 3;
+              display: flex; align-items: center; justify-content: center; line-height: 1;
+            }
+            @media (max-width: 768px) { #popupPlayer { width: 90vw; left: 5vw; right: 5vw; } }
+        `;
+        document.head.appendChild(style);
     }
-    @media (max-width: 768px) {
-      #popupPlayer { width: 90vw; height: calc(90vw * 9 / 16 + 50px); }
-    }
-    #playerContainer { flex-grow: 1; width: 100%; position: relative; background: #000; }
-    #playerContainer iframe {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;
-    }
-    #closePlayer {
-      background: #e53935; color: white; border: none;
-      font-size: 2em; font-weight: bold; width: 55px; height: 55px;
-      cursor: pointer; position: absolute; top: 6px; right: 6px;
-      border-radius: 50%; z-index: 3;
-    }
-    #closePlayer:hover { background: #ff4444; transform: scale(1.1); }
-  `;
-  document.head.appendChild(style);
 
-  document.getElementById("closePlayer").addEventListener("click", () => {
-    const popup = document.getElementById("popupPlayer");
-    const playerContainer = document.getElementById("playerContainer");
-    popup.classList.add("hidden");
-    playerContainer.innerHTML = "";
-  });
+  } catch (err) {
+    viewer.innerHTML = "コンテンツの読み込みに失敗しました。";
+    console.error("showInViewerでエラー:", err);
+  }
+}
 }
 </script>
 </body>
