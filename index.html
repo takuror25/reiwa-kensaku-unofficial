@@ -75,16 +75,18 @@ document.getElementById("search").addEventListener("input", async (e) => {
       const parser = new DOMParser();
       const doc = parser.parseFromString(text, "text/html");
 
-      const paragraphs = doc.body.querySelectorAll('p, span');
-      paragraphs.forEach((p, index) => {
-        const paragraphText = p.textContent;
-        if (keywords.every(k => paragraphText.toLowerCase().includes(k.toLowerCase()))) {
+      // ★★★ここが最重要修正点！★★★
+      // 文章が実際に書かれている <span> タグだけを対象にする
+      const contentSpans = doc.body.querySelectorAll('span');
+      contentSpans.forEach((span, index) => {
+        const spanText = span.textContent;
+        if (keywords.every(k => spanText.toLowerCase().includes(k.toLowerCase()))) {
           results.push({
             title: f.title,
             url: f.url,
             video: f.video,
-            fragment: paragraphText,
-            matchIndex: index,
+            fragment: spanText,
+            matchIndex: index, // spanタグの正しい通し番号を保存
           });
         }
       });
@@ -125,7 +127,6 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
     let highlighted = displayFragment;
     for (const k of keywords) {
-      // ★★★ここがインクの染みを消した部分です★★★
       const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       highlighted = highlighted.replace(new RegExp(escaped, "gi"), `<span class="highlight">${k}</span>`);
     }
@@ -151,7 +152,6 @@ async function showInViewer(result, keywords) {
     const doc = parser.parseFromString(text, "text/html");
     const contentBody = doc.body;
 
-    // 第1工程：タイムリンク化
     const walker = document.createTreeWalker(contentBody, NodeFilter.SHOW_TEXT);
     const textNodes = [];
     while(walker.nextNode()) textNodes.push(walker.currentNode);
@@ -177,20 +177,22 @@ async function showInViewer(result, keywords) {
         node.parentNode.replaceChild(fragment, node);
     });
 
-    // 第2工程：ハイライト
-    const allParagraphs = contentBody.querySelectorAll('p, span');
-    const targetParagraph = allParagraphs[result.matchIndex];
+    // ★★★ここも最重要修正点！★★★
+    // <span> タグだけを対象にして、正しい通し番号で目的の場所を特定
+    const allSpans = contentBody.querySelectorAll('span');
+    const targetSpan = allSpans[result.matchIndex];
 
-    if (targetParagraph) {
-        targetParagraph.id = 'jump-target';
+    if (targetSpan) {
+        targetSpan.id = 'jump-target';
     }
-
-    allParagraphs.forEach(p => {
-        if (keywords.every(k => p.textContent.toLowerCase().includes(k.toLowerCase()))) {
+    
+    // ハイライト処理は、ジャンプ先を特定した後に行う
+    allSpans.forEach(span => {
+        if (!span.classList.contains('time') && keywords.every(k => span.textContent.toLowerCase().includes(k.toLowerCase()))) {
             const keywordsRegexStr = `(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
             const keywordsRegex = new RegExp(keywordsRegexStr, 'gi');
             
-            const textWalker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+            const textWalker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT);
             const nodesToProcess = [];
             while(textWalker.nextNode()) {
                 if (!textWalker.currentNode.parentElement.closest('.time')) {
@@ -208,10 +210,10 @@ async function showInViewer(result, keywords) {
                 parts.forEach((part, index) => {
                     if (part) fragment.appendChild(document.createTextNode(part));
                     if (index < matches.length) {
-                        const span = document.createElement('span');
-                        span.className = 'highlight';
-                        span.textContent = matches[index][0];
-                        fragment.appendChild(span);
+                        const highlightSpan = document.createElement('span');
+                        highlightSpan.className = 'highlight';
+                        highlightSpan.textContent = matches[index][0];
+                        fragment.appendChild(highlightSpan);
                     }
                 });
                 node.parentNode.replaceChild(fragment, node);
@@ -271,14 +273,13 @@ async function showInViewer(result, keywords) {
             #popupPlayer { position: fixed; bottom: 10px; right: 10px; width: 50vw; max-width: 560px; background: #000; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 9999; }
             #playerContainer { position: relative; width: 100%; padding-top: 56.25%; }
             #playerContainer iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
-            #closePlayer { background: #e53935; color: white; border: none; font-size: 1.5em; cursor: pointer; position: absolute; top: -15px; right: -15px; width: 30px; height: 30px; border-radius: 50%; z-index: 3; display: flex; align-items-center; justify-content: center; line-height: 1; }
+            #closePlayer { background: #e53935; color: white; border: none; font-size: 1.5em; cursor: pointer; position: absolute; top: -15px; right: -15px; width: 30px; height: 30px; border-radius: 50%; z-index: 3; display: flex; align-items: center; justify-content: center; line-height: 1; }
             @media (max-width: 768px) { #popupPlayer { width: 90vw; left: 5vw; right: 5vw; } }
         `;
         document.head.appendChild(style);
     }
 
-  } catch (err)
-    {
+  } catch (err) {
     viewer.innerHTML = "コンテンツの読み込みに失敗しました。";
     console.error("showInViewerでエラー:", err);
   }
