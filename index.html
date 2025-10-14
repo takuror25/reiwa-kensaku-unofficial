@@ -117,7 +117,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
     const div = document.createElement("div");
     div.className = "result";
-    div.innerHTML = `<strong>${r.title}</strong><br>...${highlighted}...`;
+    div.innerHTML = `<strong>${r.title}</strong><br>...${highlighted}......`;
     div.addEventListener("click", () => showInViewer(r, keywords));
     resultsDiv.appendChild(div);
   }
@@ -136,85 +136,35 @@ async function showInViewer(result, keywords) {
     const doc = parser.parseFromString(text, "text/html");
     const contentBody = doc.body;
 
-    // --- ここからが新しい、丁寧な加工方法です ---
+    const tempDiv = document.createElement('div');
+    tempDiv.append(...contentBody.childNodes);
 
-    // 最初にすべてのテキストノード（文字ブロック）のリストを取得する
-    const getAllTextNodes = (parent) => {
-        const walker = document.createTreeWalker(parent, NodeFilter.SHOW_TEXT, null, false);
-        const textNodes = [];
-        let node;
-        while(node = walker.nextNode()) {
-            textNodes.push(node);
-        }
-        return textNodes;
-    };
-
-    // 第1工程：タイムスタンプを安全にリンク化する
-    getAllTextNodes(contentBody).forEach(node => {
-        const timeRegex = /(\d{2}:\d{2}:\d{2})/g;
-        if (node.parentElement.closest('script, style') || !timeRegex.test(node.textContent)) return;
-
-        const fragment = document.createDocumentFragment();
-        node.textContent.split(timeRegex).forEach((part, index) => {
-            if (index % 2 === 1) { // 奇数番目がタイムスタンプ
-                const span = document.createElement('span');
-                span.className = 'time';
-                span.dataset.time = part;
-                span.textContent = part;
-                fragment.appendChild(span);
-            } else if (part) {
-                fragment.appendChild(document.createTextNode(part));
-            }
-        });
-        node.parentNode.replaceChild(fragment, node);
-    });
-
-    // 第2工程：キーワードを安全にハイライトする
-    getAllTextNodes(contentBody).forEach(node => {
-        // タイムリンクの中の文字はハイライトしない
-        if (node.parentElement.closest('script, style, .time')) return;
-
-        const parentParagraph = node.parentElement.closest('p, span');
-        if (parentParagraph && keywords.every(k => parentParagraph.textContent.toLowerCase().includes(k.toLowerCase()))) {
-            const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
-            if (!keywordsRegex.test(node.textContent)) return;
-            
-            const fragment = document.createDocumentFragment();
-            const parts = node.textContent.split(keywordsRegex);
-            const matches = [...node.textContent.matchAll(keywordsRegex)];
-            
-            parts.forEach((part, index) => {
-                if (part) fragment.appendChild(document.createTextNode(part));
-                if (index < matches.length) {
-                    const span = document.createElement('span');
-                    span.className = 'highlight';
-                    span.textContent = matches[index][0];
-                    fragment.appendChild(span);
-                }
-            });
-            node.parentNode.replaceChild(fragment, node);
+    const keywordsRegex = new RegExp(keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
+    
+    tempDiv.querySelectorAll('p, span').forEach(element => {
+        if (keywords.every(k => element.innerText.toLowerCase().includes(k.toLowerCase()))) {
+            element.innerHTML = element.innerHTML.replace(keywordsRegex, match => `<span class="highlight">${match}</span>`);
         }
     });
 
-    // --- 加工完了 ---
-
+    let processedHtml = tempDiv.innerHTML;
+    const timeRegex = /(\d{2}:\d{2}:\d{2})(?![^<]*>)/g;
+    processedHtml = processedHtml.replace(timeRegex, (match) => {
+      return `<span class="time" data-time="${match}">${match}</span>`;
+    });
+    
     viewer.innerHTML = `
       <h2>${result.title}</h2>
+      <div class="talk-text">${processedHtml}</div>
       <div id="popupPlayer" class="hidden">
         <button id="closePlayer">×</button>
         <div id="playerContainer"></div>
       </div>
     `;
-    const talkTextDiv = document.createElement('div');
-    talkTextDiv.className = 'talk-text';
-    talkTextDiv.append(...contentBody.childNodes);
-    viewer.appendChild(talkTextDiv);
-    
-    // イベントリスナーを設定
+
     viewer.querySelectorAll(".time").forEach(el => {
       el.addEventListener("click", () => {
         const time = el.dataset.time;
-        // timeが取得できなかった場合のガード処理
         if (!time) return;
         const [h, m, s] = time.split(":").map(Number);
         const seconds = h * 3600 + m * 60 + s;
@@ -234,12 +184,22 @@ async function showInViewer(result, keywords) {
       viewer.querySelector("#playerContainer").innerHTML = "";
     });
     
-    // ジャンプと自動再生
+    // ★★★ここが最終修正ポイント！★★★
     setTimeout(() => {
+      // 探すための「目印」となる文章から、改行やスペースを全部取り除いておく
       const cleanTargetFragment = result.fragment.replace(/<[^>]*>/g, '');
+      const normalizedTargetFragment = cleanTargetFragment.replace(/\s+/g, '');
+      
       let targetHighlightElement = null;
-      for (const h of viewer.querySelectorAll(".highlight")) {
-        if (h.parentElement.textContent.includes(cleanTargetFragment)) {
+      const allHighlights = viewer.querySelectorAll(".highlight");
+
+      for (const h of allHighlights) {
+        // 全文の中の文章からも、改行やスペースを全部取り除いて比較する
+        const parentContext = h.parentElement.textContent;
+        const normalizedParentContext = parentContext.replace(/\s+/g, '');
+
+        // スペースなどを無視した状態で、文章が含まれているかチェック
+        if (normalizedParentContext.includes(normalizedTargetFragment)) {
           targetHighlightElement = h;
           break;
         }
@@ -247,19 +207,20 @@ async function showInViewer(result, keywords) {
 
       if (targetHighlightElement) {
         targetHighlightElement.scrollIntoView({ behavior: "smooth", block: "center" });
-
+        
         const paragraphOrSpan = targetHighlightElement.closest('p, span');
         if (paragraphOrSpan) {
             const firstTimeLinkInParagraph = paragraphOrSpan.querySelector('.time');
             if (firstTimeLinkInParagraph) {
-                // time要素に紐づいたクリックイベントをプログラムから呼び出す
+                // 見つけたタイムリンクのクリック命令を出す
                 firstTimeLinkInParagraph.click();
             }
         }
-      } else if (viewer.querySelectorAll(".highlight").length > 0) {
-        viewer.querySelectorAll(".highlight")[0].scrollIntoView({ behavior: "smooth", block: "center" });
+      } 
+      else if (allHighlights.length > 0) {
+        allHighlights[0].scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    }, 100);
+    }, 150); // 少しだけ待機時間を延ばして、処理を安定させます
 
     if (!document.getElementById('popup-player-style')) {
         const style = document.createElement("style");
