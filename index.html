@@ -97,6 +97,7 @@
 <script src="data/files.js?v=3"></script>
 
 
+
 <script>
 // 「ページの先頭に戻るボタン」を作成してページに追加する
 const backToTopButton = document.createElement('button');
@@ -325,7 +326,7 @@ async function showInViewer(result, keywords) {
         
         const playerContainer = viewer.querySelector("#playerContainer");
         playerContainer.innerHTML = `<iframe src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-        popup.style.visibility = 'visible'; // hiddenの代わりにvisibilityを使用
+        popup.style.visibility = 'visible';
       });
     });
     
@@ -351,13 +352,12 @@ async function showInViewer(result, keywords) {
         style.id = 'popup-player-style';
         style.textContent = `
             #popupPlayer {
-              visibility: hidden; /* 最初は非表示 */
+              visibility: hidden;
               position: fixed;
               bottom: 10px;
-              left: 10px; /* ★★★修正点1: 左に配置★★★ */
-              transform: none; /* 中央寄せを解除 */
-              /* ★★★修正点2: ボタンを避ける賢い幅計算★★★ */
-              width: calc(100vw - 90px); /* 画面幅からボタン等のスペースを引く */
+              left: 10px;
+              transform: none;
+              width: calc(100vw - 90px);
               max-width: 400px;
               background: #000;
               border-radius: 10px;
@@ -367,37 +367,15 @@ async function showInViewer(result, keywords) {
               flex-direction: column;
               touch-action: none;
             }
-            #dragHandle {
-              height: 24px;
-              background: #333;
-              cursor: grab;
-              border-top-left-radius: 10px;
-              border-top-right-radius: 10px;
-              position: relative;
-            }
-            #dragHandle .grip {
-              width: 40px;
-              height: 4px;
-              background: #666;
-              border-radius: 2px;
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%);
-            }
-            #playerContainer {
-              position: relative;
-              width: 100%;
-              padding-top: 56.25%;
-            }
-            #playerContainer iframe {
-              position: absolute;
-              top: 0;
-              left: 0;
-              width: 100%;
-              height: 100%;
-              border: none;
-            }
+            #dragHandle { height: 24px; background: #333; cursor: grab;
+              border-top-left-radius: 10px; border-top-right-radius: 10px; position: relative; }
+            #dragHandle .grip { width: 40px; height: 4px; background: #666;
+              border-radius: 2px; position: absolute; top: 50%; left: 50%;
+              transform: translate(-50%, -50%); }
+            #playerContainer { position: relative; width: 100%; padding-top: 56.25%; }
+            #playerContainer iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+            
+            /* ★★★ここが整理整頓のための修正★★★ */
             #closePlayer {
               background: #e53935; color: white; border: none;
               font-size: 1.2em; font-weight: bold;
@@ -415,7 +393,6 @@ async function showInViewer(result, keywords) {
   }
 }
 </script>
-
   
 </body>
 </html>
