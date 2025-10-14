@@ -157,6 +157,37 @@ async function showInViewer(result, keywords) {
 // ✅ タイムの後に <br> があっても正しくリンク化
 // ✅ タイムの後に <br> があっても正しくリンク化
 
+// ✅ finalText を DOM に入れてから、テキストノードの時刻を <span class="time"> に変換
+const tempDiv = document.createElement("div");
+tempDiv.innerHTML = finalText;
+
+function linkifyTimeNodes(node) {
+  if (node.nodeType === 3) {
+    const regex = /(\d{2}:\d{2}:\d{2})/g;
+    if (regex.test(node.textContent)) {
+      const frag = document.createDocumentFragment();
+      let last = 0;
+      node.textContent.replace(regex, (m, _p1, idx) => {
+        if (idx > last) frag.appendChild(document.createTextNode(node.textContent.slice(last, idx)));
+        const span = document.createElement("span");
+        span.className = "time";
+        span.dataset.time = m;
+        span.textContent = m;
+        frag.appendChild(span);
+        last = idx + m.length;
+      });
+      if (last < node.textContent.length) {
+        frag.appendChild(document.createTextNode(node.textContent.slice(last)));
+      }
+      node.parentNode.replaceChild(frag, node);
+    }
+  } else if (node.nodeType === 1 && node.childNodes) {
+    node.childNodes.forEach(linkifyTimeNodes);
+  }
+}
+linkifyTimeNodes(tempDiv);
+finalText = tempDiv.innerHTML;   // ← ここでリンク化済みHTMLに置き換え
+
   
   // HTMLに挿入
   viewer.innerHTML = `
