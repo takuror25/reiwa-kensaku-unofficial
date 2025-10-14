@@ -55,7 +55,6 @@
 
 <script src="data/files.js?v=3"></script>
   
-
 <script>
 document.getElementById("search").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
@@ -184,24 +183,32 @@ async function showInViewer(result, keywords) {
       viewer.querySelector("#playerContainer").innerHTML = "";
     });
     
-    // ★★★ここが修正点！★★★
-    // 該当箇所へジャンプするロジックを修正
+    // ★★★ここが修正の最終ポイント！★★★
     setTimeout(() => {
-      // 検索結果の断片（fragment）から、HTMLタグを取り除き、識別のための短いテキストを作る
-      const targetText = result.fragment.replace(/<[^>]*>/g, '').substring(0, 30);
+      // クリックされた検索結果の「前後の文脈」を、HTMLタグなどを除いた綺麗なテキストとして取得
+      const cleanTargetFragment = result.fragment.replace(/<[^>]*>/g, '');
       
       const allHighlights = viewer.querySelectorAll(".highlight");
-      let found = false;
+      let targetElement = null;
+
+      // 全文の中に表示された全てのハイライトをチェック
       for (const h of allHighlights) {
-        // ハイライトされた箇所の親の文章に、識別のためのテキストが含まれているかチェック
-        if (h.parentElement.textContent.includes(targetText)) {
-          h.scrollIntoView({ behavior: "smooth", block: "center" });
-          found = true;
-          break; // 見つかったらループを抜ける
+        // ハイライトが含まれる親の文章（<p>タグなど）のテキストを取得
+        const parentContext = h.parentElement.textContent;
+
+        // 親の文章が、探している「前後の文脈」を完全に含んでいるかチェック
+        if (parentContext.includes(cleanTargetFragment)) {
+          targetElement = h; // これが探していた場所だ！
+          break; // 見つかったので、これ以上探す必要はない
         }
       }
-      // もし万が一見つからなかったら、最初のハイライトにジャンプする
-      if (!found && allHighlights.length > 0) {
+
+      // もし、ぴったり一致する場所が見つかったら、そこにジャンプ
+      if (targetElement) {
+        targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      } 
+      // 万が一見つからなかった場合の保険として、最初のハイライトにジャンプ
+      else if (allHighlights.length > 0) {
         allHighlights[0].scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }, 100);
@@ -225,6 +232,6 @@ async function showInViewer(result, keywords) {
   }
 }
 </script>
-  
+
 </body>
 </html>
