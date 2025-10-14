@@ -55,6 +55,7 @@
 
 <script src="data/files.js?v=3"></script>
   
+
 <script>
 document.getElementById("search").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
@@ -136,30 +137,23 @@ async function showInViewer(result, keywords) {
     const doc = parser.parseFromString(text, "text/html");
     const contentBody = doc.body;
 
-    // --- ステップ1: キーワードをハイライト ---
     const tempDiv = document.createElement('div');
-    tempDiv.append(...contentBody.childNodes); // 安全に中身を移動
+    tempDiv.append(...contentBody.childNodes);
 
     const keywordsRegex = new RegExp(keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
     
-    // 段落や発言者ごと（pタグやspanタグ）にキーワードが含まれているかチェック
     tempDiv.querySelectorAll('p, span').forEach(element => {
-        // AND条件：要素のテキストに「全てのキーワード」が含まれている場合のみハイライト
         if (keywords.every(k => element.innerText.toLowerCase().includes(k.toLowerCase()))) {
-            // タグの中のテキストだけを安全に置換する
             element.innerHTML = element.innerHTML.replace(keywordsRegex, match => `<span class="highlight">${match}</span>`);
         }
     });
 
-    // --- ステップ2: タイムスタンプをリンク化 ---
     let processedHtml = tempDiv.innerHTML;
-    // (?![^<]*>) を使って、HTMLタグの中は置換しないようにする
     const timeRegex = /(\d{2}:\d{2}:\d{2})(?![^<]*>)/g;
     processedHtml = processedHtml.replace(timeRegex, (match) => {
       return `<span class="time" data-time="${match}">${match}</span>`;
     });
     
-    // --- ステップ3: 加工済みのHTMLをページに表示 ---
     viewer.innerHTML = `
       <h2>${result.title}</h2>
       <div class="talk-text">${processedHtml}</div>
@@ -169,7 +163,6 @@ async function showInViewer(result, keywords) {
       </div>
     `;
 
-    // --- ステップ4: イベントリスナーを設定 ---
     viewer.querySelectorAll(".time").forEach(el => {
       el.addEventListener("click", () => {
         const time = el.dataset.time;
@@ -191,15 +184,28 @@ async function showInViewer(result, keywords) {
       viewer.querySelector("#playerContainer").innerHTML = "";
     });
     
-    // --- ステップ5: 該当箇所へジャンプ ---
+    // ★★★ここが修正点！★★★
+    // 該当箇所へジャンプするロジックを修正
     setTimeout(() => {
-      const firstHighlight = viewer.querySelector(".highlight");
-      if (firstHighlight) {
-        firstHighlight.scrollIntoView({ behavior: "smooth", block: "center" });
+      // 検索結果の断片（fragment）から、HTMLタグを取り除き、識別のための短いテキストを作る
+      const targetText = result.fragment.replace(/<[^>]*>/g, '').substring(0, 30);
+      
+      const allHighlights = viewer.querySelectorAll(".highlight");
+      let found = false;
+      for (const h of allHighlights) {
+        // ハイライトされた箇所の親の文章に、識別のためのテキストが含まれているかチェック
+        if (h.parentElement.textContent.includes(targetText)) {
+          h.scrollIntoView({ behavior: "smooth", block: "center" });
+          found = true;
+          break; // 見つかったらループを抜ける
+        }
+      }
+      // もし万が一見つからなかったら、最初のハイライトにジャンプする
+      if (!found && allHighlights.length > 0) {
+        allHighlights[0].scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }, 100);
 
-    // スタイルがなければ追加
     if (!document.getElementById('popup-player-style')) {
         const style = document.createElement("style");
         style.id = 'popup-player-style';
