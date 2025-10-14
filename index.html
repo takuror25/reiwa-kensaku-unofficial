@@ -96,7 +96,6 @@
 
 <script src="data/files.js?v=3"></script>
 
-
 <script>
 document.getElementById("search").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
@@ -114,17 +113,18 @@ document.getElementById("search").addEventListener("input", async (e) => {
       const res = await fetch(f.url);
       if (!res.ok) continue;
       const text = await res.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, "text/html");
 
-      const paragraphs = text.split(/(<p>.*?<\/p>)/s).filter(p => p.startsWith('<p>'));
-      
-      paragraphs.forEach((p, index) => {
-        const plainText = p.replace(/<[^>]*>/g, "");
-        if (keywords.every(k => plainText.toLowerCase().includes(k.toLowerCase()))) {
+      const contentSpans = doc.body.querySelectorAll('span');
+      contentSpans.forEach((span, index) => {
+        const spanText = span.textContent;
+        if (keywords.every(k => spanText.toLowerCase().includes(k.toLowerCase()))) {
           results.push({
             title: f.title,
             url: f.url,
             video: f.video,
-            fragment: plainText,
+            fragment: spanText,
             matchIndex: index,
           });
         }
@@ -186,91 +186,142 @@ async function showInViewer(result, keywords) {
   try {
     const res = await fetch(result.url);
     if (!res.ok) throw new Error('ファイルの読み込みに失敗しました');
-    const originalHtml = await res.text();
+    const text = await res.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, "text/html");
+    const contentBody = doc.body;
 
-    let paragraphs = originalHtml.split(/(<p>.*?<\/p>)/s).filter(p => p.startsWith('<p>'));
-    
-    if (paragraphs[result.matchIndex]) {
-        paragraphs[result.matchIndex] = paragraphs[result.matchIndex].replace('<p>', `<p id="jump-target">`);
+    // 手順1：何よりも先に、まっさらな地図で目的の家（span）を探し、旗を立てる
+    const allSpans = contentBody.querySelectorAll('span');
+    const targetSpan = allSpans[result.matchIndex];
+    if (targetSpan) {
+        targetSpan.id = 'jump-target';
     }
 
-    let processedHtml = paragraphs.join('\n');
+    // 手順2：旗を立てた後で、家を増やす作業（タイムリンク化）を行う
+    const walker = document.createTreeWalker(contentBody, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    while(walker.nextNode()) textNodes.push(walker.currentNode);
 
-    const timeRegex = /(\d{2}:\d{2}:\d{2})(?![^<]*>)/g;
-    processedHtml = processedHtml.replace(timeRegex, (match) => {
-      return `<span class="time" data-time="${match}">${match}</span>`;
+    textNodes.forEach(node => {
+        const timeRegex = /(\d{2}:\d{2}:\d{2})/g;
+        if (!timeRegex.test(node.textContent)) return;
+        const fragment = document.createDocumentFragment();
+        node.textContent.split(timeRegex).forEach((part, index) => {
+            if (index % 2 === 1) {
+                const span = document.createElement('span');
+                span.className = 'time';
+                span.dataset.time = part;
+                span.textContent = part;
+                fragment.appendChild(span);
+            } else if (part) {
+                fragment.appendChild(document.createTextNode(part));
+            }
+        });
+        node.parentNode.replaceChild(fragment, node);
     });
 
-    const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
-    processedHtml = processedHtml.replace(keywordsRegex, (match) => {
-        if (match.includes('class="time"')) return match;
-        return `<span class="highlight">${match}</span>`;
+    // 手順3：最後に、ペンキを塗る作業（ハイライト）を行う
+    const spansToHighlight = contentBody.querySelectorAll('span');
+    spansToHighlight.forEach(span => {
+        if (keywords.every(k => span.textContent.toLowerCase().includes(k.toLowerCase()))) {
+            const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+            const textWalker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT);
+            const nodesToProcess = [];
+            while(textWalker.nextNode()) {
+                if (!textWalker.currentNode.parentElement.closest('.time')) {
+                    nodesToProcess.push(textWalker.currentNode);
+                }
+            }
+            nodesToProcess.forEach(node => {
+                if (!keywordsRegex.test(node.textContent)) return;
+                const fragment = document.createDocumentFragment();
+                const parts = node.textContent.split(keywordsRegex);
+                const matches = [...node.textContent.matchAll(keywordsRegex)];
+                parts.forEach((part, index) => {
+                    if (part) fragment.appendChild(document.createTextNode(part));
+                    if (index < matches.length) {
+                        const highlightSpan = document.createElement('span');
+                        highlightSpan.className = 'highlight';
+                        highlightSpan.textContent = matches[index][0];
+                        fragment.appendChild(highlightSpan);
+                    }
+                });
+                node.parentNode.replaceChild(fragment, node);
+            });
+        }
     });
-
-    const tempDoc = new DOMParser().parseFromString(processedHtml, "text/html");
 
     viewer.innerHTML = `
       <h2>${result.title}</h2>
-      <div class="talk-text">${tempDoc.body.innerHTML}</div>
       <div id="popupPlayer" class="hidden">
+        <div id="dragHandle"><div class="grip"></div></div>
         <button id="closePlayer">×</button>
-        <div id="dragHandle"></div> <div id="playerContainer"></div>
+        <div id="playerContainer"></div>
       </div>
     `;
+    const talkTextDiv = document.createElement('div');
+    talkTextDiv.className = 'talk-text';
+    talkTextDiv.append(...contentBody.childNodes);
+    viewer.appendChild(talkTextDiv);
 
-    // ★★★ここからドラッグ機能の追加★★★
+    // ★★★ここからドラッグ機能の完全修正版★★★
     const popup = viewer.querySelector("#popupPlayer");
     const dragHandle = viewer.querySelector("#dragHandle");
-    let isDragging = false;
-    let offsetX, offsetY;
+    let active = false;
+    let currentX;
+    let currentY;
+    let initialX;
+    let initialY;
+    let xOffset = 0;
+    let yOffset = 0;
 
-    // 初期位置を設定 (画面右下から少し離れた位置)
-    const initialWidth = 300; // 例として初期幅を設定 (CSSで上書きされる可能性あり)
-    const initialHeight = initialWidth * 9 / 16 + 30; // 16:9 + ハンドル高さ (例)
-    popup.style.left = `${window.innerWidth - initialWidth - 20}px`;
-    popup.style.top = `${window.innerHeight - initialHeight - 20}px`;
-
-
-    const startDrag = (e) => {
-        isDragging = true;
-        // ポップアップ内のどこをクリックしたか（タッチしたか）を記録
-        offsetX = e.clientX - popup.getBoundingClientRect().left;
-        offsetY = e.clientY - popup.getBoundingClientRect().top;
-        popup.style.cursor = 'grabbing';
-        e.preventDefault(); // テキスト選択などを防止
+    const dragStart = (e) => {
+      if (e.type === "touchstart") {
+        initialX = e.touches[0].clientX - xOffset;
+        initialY = e.touches[0].clientY - yOffset;
+      } else {
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+      }
+      if (e.target === dragHandle) {
+        active = true;
+      }
     };
 
-    const doDrag = (e) => {
-        if (!isDragging) return;
-        let clientX = e.clientX;
-        let clientY = e.clientY;
+    const dragEnd = () => {
+      initialX = currentX;
+      initialY = currentY;
+      active = false;
+    };
 
-        if (e.touches && e.touches.length > 0) { // タッチイベントの場合
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
+    const drag = (e) => {
+      if (active) {
+        e.preventDefault();
+        if (e.type === "touchmove") {
+          currentX = e.touches[0].clientX - initialX;
+          currentY = e.touches[0].clientY - initialY;
+        } else {
+          currentX = e.clientX - initialX;
+          currentY = e.clientY - initialY;
         }
-
-        // ポップアップを移動
-        popup.style.left = `${clientX - offsetX}px`;
-        popup.style.top = `${clientY - offsetY}px`;
+        xOffset = currentX;
+        yOffset = currentY;
+        setTranslate(currentX, currentY, popup);
+      }
     };
-
-    const stopDrag = () => {
-        isDragging = false;
-        popup.style.cursor = 'grab';
+    
+    const setTranslate = (xPos, yPos, el) => {
+      el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
     };
-
-    // マウスイベント
-    dragHandle.addEventListener('mousedown', startDrag);
-    document.addEventListener('mousemove', doDrag);
-    document.addEventListener('mouseup', stopDrag);
-
-    // タッチイベント
-    dragHandle.addEventListener('touchstart', startDrag);
-    document.addEventListener('touchmove', doDrag);
-    document.addEventListener('touchend', stopDrag);
+    
+    dragHandle.addEventListener("touchstart", dragStart, false);
+    viewer.addEventListener("touchend", dragEnd, false);
+    viewer.addEventListener("touchmove", drag, false);
+    dragHandle.addEventListener("mousedown", dragStart, false);
+    viewer.addEventListener("mouseup", dragEnd, false);
+    viewer.addEventListener("mousemove", drag, false);
     // ★★★ドラッグ機能ここまで★★★
-
 
     viewer.querySelectorAll(".time").forEach(el => {
       el.addEventListener("click", () => {
@@ -288,7 +339,6 @@ async function showInViewer(result, keywords) {
     });
     
     viewer.querySelector("#closePlayer").addEventListener("click", () => {
-      const popup = viewer.querySelector("#popupPlayer");
       popup.classList.add("hidden");
       viewer.querySelector("#playerContainer").innerHTML = "";
     });
@@ -297,103 +347,71 @@ async function showInViewer(result, keywords) {
       const targetElement = viewer.querySelector(`#jump-target`);
       if (targetElement) {
         targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        const firstTimeLink = targetElement.querySelector('.time');
-        
+        const parentP = targetElement.closest('p');
+        const firstTimeLink = parentP ? parentP.querySelector('.time') : null;
         if (firstTimeLink) {
             firstTimeLink.click();
         }
       }
     }, 200);
 
-    // スタイルを再追加（念のため。通常は一度で良い）
     if (!document.getElementById('popup-player-style')) {
         const style = document.createElement("style");
         style.id = 'popup-player-style';
         style.textContent = `
-            #popupPlayer { 
-                position: fixed; 
-                width: 300px; /* デフォルトの幅 */
-                height: auto; /* 高さはコンテンツに合わせる */
-                background: #000; 
-                border-radius: 10px; 
-                box-shadow: 0 4px 16px rgba(0,0,0,0.5); 
-                z-index: 9999; 
-                display: flex; /* flexboxで中身を配置 */
-                flex-direction: column; /* 縦方向に並べる */
-                overflow: hidden; /* 角丸で隠れる部分を処理 */
-                cursor: grab; /* ドラッグできることを示すカーソル */
+            #popupPlayer {
+              position: fixed;
+              bottom: 10px;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 90vw;
+              max-width: 560px;
+              background: #000;
+              border-radius: 10px;
+              box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+              z-index: 9999;
+              display: flex;
+              flex-direction: column;
+              touch-action: none; /* スマホでのドラッグ操作をスムーズにする */
             }
             #dragHandle {
-                height: 30px; /* ドラッグハンドルの高さ */
-                background: #333; /* ハンドルの背景色 */
-                cursor: grab; /* ドラッグできることを示すカーソル */
-                border-top-left-radius: 10px;
-                border-top-right-radius: 10px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #ccc;
-                font-size: 0.8em;
-                opacity: 0.8;
-                position: relative;
+              height: 24px;
+              background: #333;
+              cursor: grab;
+              border-top-left-radius: 10px;
+              border-top-right-radius: 10px;
+              position: relative;
             }
-            #dragHandle::after {
-                content: "≡"; /* ドラッグできることを示すアイコン */
-                font-size: 1.5em;
-                transform: rotate(90deg);
-                line-height: 1;
-                margin-top: -5px; /* 微調整 */
+            #dragHandle .grip {
+              width: 40px;
+              height: 4px;
+              background: #666;
+              border-radius: 2px;
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
             }
-            #playerContainer { 
-                position: relative; 
-                width: 100%; 
-                padding-top: 56.25%; /* 16:9 のアスペクト比を維持 */
-                flex-grow: 1; /* 残りのスペースを埋める */
+            #playerContainer {
+              position: relative;
+              width: 100%;
+              padding-top: 56.25%; /* 16:9 Aspect Ratio */
             }
-            #playerContainer iframe { 
-                position: absolute; 
-                top: 0; 
-                left: 0; 
-                width: 100%; 
-                height: 100%; 
-                border: none;
-                object-fit: cover; /* ★黒帯をなくすための修正★ */
+            #playerContainer iframe {
+              position: absolute;
+              top: 0;
+              left: 0;
+              width: 100%;
+              height: 100%;
+              border: none;
             }
-            #closePlayer { 
-                background: #e53935; 
-                color: white; 
-                border: none; 
-                font-size: 1.5em; 
-                cursor: pointer; 
-                position: absolute; 
-                top: 5px; /* ハンドル内ではなく、全体の右上へ */
-                right: 5px; 
-                width: 25px; /* 少し小さく */
-                height: 25px; 
-                border-radius: 50%; 
-                z-index: 3; 
-                display: flex; 
-                align-items: center; 
-                justify-content: center; 
-                line-height: 1;
-            }
-            @media (max-width: 768px) { 
-                #popupPlayer { 
-                    width: 90vw; 
-                    /* topとleftはJavaScriptで動的に設定するため、ここでは初期値のみ */
-                    left: 5vw; 
-                    top: auto; /* 画面下部に配置 */
-                    bottom: 10px;
-                    max-width: none; /* スマホでは最大幅をなくす */
-                } 
-                /* スマホでのドラッグハンドルアイコン調整 */
-                #dragHandle::after {
-                    font-size: 1.8em; /* 少し大きく */
-                }
-                #closePlayer {
-                    top: 8px; /* スマホで位置を微調整 */
-                    right: 8px;
-                }
+            #closePlayer {
+              background: #e53935; color: white; border: none;
+              font-size: 1.2em; font-weight: bold;
+              cursor: pointer; position: absolute; top: -10px; right: -10px;
+              width: 24px; height: 24px;
+              border-radius: 50%; z-index: 10000;
+              display: flex; align-items: center; justify-content: center;
             }
         `;
         document.head.appendChild(style);
@@ -405,6 +423,7 @@ async function showInViewer(result, keywords) {
   }
 }
 </script>
+
   
 </body>
 </html>
