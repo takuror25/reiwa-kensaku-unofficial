@@ -75,19 +75,16 @@ document.getElementById("search").addEventListener("input", async (e) => {
       const parser = new DOMParser();
       const doc = parser.parseFromString(text, "text/html");
 
-      // ★★★新しい方式：先に「付箋」を貼る★★★
-      // PタグやSPANタグをすべて取得
       const paragraphs = doc.body.querySelectorAll('p, span');
       paragraphs.forEach((p, index) => {
-        // AND条件：すべてのキーワードが含まれている段落を探す
-        if (keywords.every(k => p.textContent.toLowerCase().includes(k.toLowerCase()))) {
-          // 結果オブジェクトに、固有の「付箋番号」(index)を保存する
+        const paragraphText = p.textContent;
+        if (keywords.every(k => paragraphText.toLowerCase().includes(k.toLowerCase()))) {
           results.push({
             title: f.title,
             url: f.url,
             video: f.video,
-            fragment: p.textContent, // 表示用のテキスト
-            matchIndex: index, // ★これが固有の「付箋番号」
+            fragment: paragraphText, // 段落全体のテキストを保存
+            matchIndex: index,
           });
         }
       });
@@ -110,9 +107,27 @@ document.getElementById("search").addEventListener("input", async (e) => {
   `;
   resultsDiv.appendChild(note);
 
+  // ★★★ここが最終修正ポイント！★★★
   results.forEach(r => {
-    // 表示する断片テキストを80文字程度に丸める
-    const displayFragment = r.fragment.length > 160 ? `...${r.fragment.substring(0, 160)}...` : r.fragment;
+    const fragmentText = r.fragment;
+    let displayFragment = '';
+
+    // 最初のキーワードの位置を探す
+    const firstKeyword = keywords[0];
+    const keywordIndex = fragmentText.toLowerCase().indexOf(firstKeyword.toLowerCase());
+
+    if (keywordIndex !== -1) {
+      // キーワードを中心に前80文字、後80文字を切り出す
+      const start = Math.max(0, keywordIndex - 80);
+      const end = Math.min(fragmentText.length, keywordIndex + firstKeyword.length + 80);
+      displayFragment = fragmentText.substring(start, end);
+      if (start > 0) displayFragment = "..." + displayFragment;
+      if (end < fragmentText.length) displayFragment = displayFragment + "...";
+    } else {
+      // 万が一見つからなかった場合は、先頭から切り出す（保険）
+      displayFragment = fragmentText.length > 160 ? `${fragmentText.substring(0, 160)}...` : fragmentText;
+    }
+
     let highlighted = displayFragment;
     for (const k of keywords) {
       const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -122,7 +137,6 @@ document.getElementById("search").addEventListener("input", async (e) => {
     const div = document.createElement("div");
     div.className = "result";
     div.innerHTML = `<strong>${r.title}</strong><br>${highlighted}`;
-    // クリック時に、結果オブジェクト(r)をそのまま渡す（rの中に「付箋番号」が入っている）
     div.addEventListener("click", () => showInViewer(r, keywords));
     resultsDiv.appendChild(div);
   });
@@ -141,34 +155,36 @@ async function showInViewer(result, keywords) {
     const doc = parser.parseFromString(text, "text/html");
     const contentBody = doc.body;
 
-    // ★★★新しい方式：「付箋番号」で目的の場所を特定★★★
     const allParagraphs = contentBody.querySelectorAll('p, span');
-    // 渡された「付箋番号」(result.matchIndex)を使って、目的の段落を直接特定する
     const targetParagraph = allParagraphs[result.matchIndex];
 
     if (targetParagraph) {
-        // 見つけた段落にだけ、ジャンプ用の目印IDを付ける
         targetParagraph.id = 'jump-target';
     }
 
-    // --- ここから飾り付け処理 ---
-    // タイムリンクを付ける
     let processedHtml = contentBody.innerHTML;
     const timeRegex = /(\d{2}:\d{2}:\d{2})(?![^<]*>)/g;
     processedHtml = processedHtml.replace(timeRegex, (match) => {
       return `<span class="time" data-time="${match}">${match}</span>`;
     });
-    // キーワードをハイライトする
-    const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
-    processedHtml = processedHtml.replace(keywordsRegex, (match) => {
-        // タイムリンクの中はハイライトしない
-        if (match.includes('<span class="time"')) return match;
-        return `<span class="highlight">${match}</span>`;
-    });
     
+    // ハイライト処理をより安全な方法に変更
+    const tempContainer = document.createElement('div');
+    tempContainer.innerHTML = processedHtml;
+    tempContainer.querySelectorAll('p, span').forEach(el => {
+        if (keywords.every(k => el.textContent.toLowerCase().includes(k.toLowerCase()))) {
+            const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+            el.innerHTML = el.innerHTML.replace(keywordsRegex, (match, p1) => {
+                // 既に別のタグに囲まれていない部分だけをハイライトする（簡易的なチェック）
+                if (match.includes('<') || match.includes('>')) return match;
+                return `<span class="highlight">${p1}</span>`;
+            });
+        }
+    });
+
     viewer.innerHTML = `
       <h2>${result.title}</h2>
-      <div class="talk-text">${processedHtml}</div>
+      <div class="talk-text">${tempContainer.innerHTML}</div>
       <div id="popupPlayer" class="hidden">
         <button id="closePlayer">×</button>
         <div id="playerContainer"></div>
@@ -197,7 +213,6 @@ async function showInViewer(result, keywords) {
       viewer.querySelector("#playerContainer").innerHTML = "";
     });
     
-    // ★★★新しい方式：目印IDにジャンプし、再生する★★★
     setTimeout(() => {
       const targetElement = viewer.querySelector(`#jump-target`);
       
