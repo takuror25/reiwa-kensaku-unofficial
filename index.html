@@ -97,7 +97,6 @@
 <script src="data/files.js?v=3"></script>
 
 
-
 <script>
 // 「ページの先頭に戻るボタン」を作成してページに追加する
 const backToTopButton = document.createElement('button');
@@ -272,7 +271,7 @@ async function showInViewer(result, keywords) {
 
     viewer.innerHTML = `
       <h2>${result.title}</h2>
-      <div id="popupPlayer" class="hidden">
+      <div id="popupPlayer">
         <div id="dragHandle"><div class="grip"></div></div>
         <button id="closePlayer">×</button>
         <div id="playerContainer"></div>
@@ -326,12 +325,12 @@ async function showInViewer(result, keywords) {
         
         const playerContainer = viewer.querySelector("#playerContainer");
         playerContainer.innerHTML = `<iframe src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-        popup.classList.remove("hidden");
+        popup.style.visibility = 'visible'; // hiddenの代わりにvisibilityを使用
       });
     });
     
     viewer.querySelector("#closePlayer").addEventListener("click", () => {
-      popup.classList.add("hidden");
+      popup.style.visibility = 'hidden';
       viewer.querySelector("#playerContainer").innerHTML = "";
     });
     
@@ -352,13 +351,14 @@ async function showInViewer(result, keywords) {
         style.id = 'popup-player-style';
         style.textContent = `
             #popupPlayer {
+              visibility: hidden; /* 最初は非表示 */
               position: fixed;
               bottom: 10px;
-              /* ★★★ここが修正点です！★★★ */
-              left: 10px; /* 左からの位置を指定 */
-              transform: none; /* 中央寄せのtransformを解除 */
-              width: 90vw;
-              max-width: 400px; /* PCでの最大幅を少し調整 */
+              left: 10px; /* ★★★修正点1: 左に配置★★★ */
+              transform: none; /* 中央寄せを解除 */
+              /* ★★★修正点2: ボタンを避ける賢い幅計算★★★ */
+              width: calc(100vw - 90px); /* 画面幅からボタン等のスペースを引く */
+              max-width: 400px;
               background: #000;
               border-radius: 10px;
               box-shadow: 0 4px 16px rgba(0,0,0,0.5);
@@ -415,6 +415,7 @@ async function showInViewer(result, keywords) {
   }
 }
 </script>
+
   
 </body>
 </html>
