@@ -183,29 +183,42 @@ async function showInViewer(result, keywords) {
       viewer.querySelector("#playerContainer").innerHTML = "";
     });
     
-    // ★★★ここが修正の最終ポイント！★★★
     setTimeout(() => {
-      // クリックされた検索結果の「前後の文脈」を、HTMLタグなどを除いた綺麗なテキストとして取得
       const cleanTargetFragment = result.fragment.replace(/<[^>]*>/g, '');
       
+      let targetHighlightElement = null;
       const allHighlights = viewer.querySelectorAll(".highlight");
-      let targetElement = null;
 
-      // 全文の中に表示された全てのハイライトをチェック
       for (const h of allHighlights) {
-        // ハイライトが含まれる親の文章（<p>タグなど）のテキストを取得
         const parentContext = h.parentElement.textContent;
-
-        // 親の文章が、探している「前後の文脈」を完全に含んでいるかチェック
         if (parentContext.includes(cleanTargetFragment)) {
-          targetElement = h; // これが探していた場所だ！
-          break; // 見つかったので、これ以上探す必要はない
+          targetHighlightElement = h;
+          break;
         }
       }
 
-      // もし、ぴったり一致する場所が見つかったら、そこにジャンプ
-      if (targetElement) {
-        targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (targetHighlightElement) {
+        targetHighlightElement.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        // ★★★ここからが今回の修正点！★★★
+        // ジャンプ先の段落にある最初のタイムリンクを自動再生
+        const paragraphOrSpan = targetHighlightElement.closest('p, span'); // ハイライトの親の段落やspan要素を探す
+        if (paragraphOrSpan) {
+            const firstTimeLinkInParagraph = paragraphOrSpan.querySelector('.time'); // その段落内の最初のタイムリンクを探す
+            if (firstTimeLinkInParagraph) {
+                // タイムリンクが見つかったら、自動再生処理を実行
+                const time = firstTimeLinkInParagraph.dataset.time;
+                const [h, m, s] = time.split(":").map(Number);
+                const seconds = h * 3600 + m * 60 + s;
+                const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
+                const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
+                
+                const popup = viewer.querySelector("#popupPlayer");
+                const playerContainer = viewer.querySelector("#playerContainer");
+                playerContainer.innerHTML = `<iframe src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+                popup.classList.remove("hidden");
+            }
+        }
       } 
       // 万が一見つからなかった場合の保険として、最初のハイライトにジャンプ
       else if (allHighlights.length > 0) {
