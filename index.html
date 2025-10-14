@@ -172,16 +172,23 @@ document.getElementById("search").addEventListener("input", async (e) => {
   results.forEach(r => {
     const fragmentText = r.fragment;
     let displayFragment = '';
-    const firstKeyword = keywords[0] || '';
-    const keywordIndex = fragmentText.toLowerCase().indexOf(firstKeyword.toLowerCase());
+    
+    // ★★★ここが今回の修正点！★★★
+    // 複数のキーワードのどれかが最初に出てくる場所を探す
+    const keywordsRegex = new RegExp(keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i');
+    const match = fragmentText.match(keywordsRegex);
+    const keywordIndex = match ? match.index : -1;
 
     if (keywordIndex !== -1) {
+      const keywordLength = match[0].length;
+      // キーワードを中心に前80文字、後80文字を切り出す
       const start = Math.max(0, keywordIndex - 80);
-      const end = Math.min(fragmentText.length, keywordIndex + firstKeyword.length + 80);
+      const end = Math.min(fragmentText.length, keywordIndex + keywordLength + 80);
       displayFragment = fragmentText.substring(start, end);
       if (start > 0) displayFragment = "..." + displayFragment;
       if (end < fragmentText.length) displayFragment = displayFragment + "...";
     } else {
+      // 万が一見つからなかった場合は、先頭から切り出す（保険）
       displayFragment = fragmentText.length > 160 ? `${fragmentText.substring(0, 160)}...` : fragmentText;
     }
 
