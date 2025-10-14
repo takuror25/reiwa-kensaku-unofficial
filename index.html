@@ -72,19 +72,19 @@ document.getElementById("search").addEventListener("input", async (e) => {
       const res = await fetch(f.url);
       if (!res.ok) continue;
       const text = await res.text();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(text, "text/html");
 
-      const contentSpans = doc.body.querySelectorAll('span');
-      contentSpans.forEach((span, index) => {
-        const spanText = span.textContent;
-        if (keywords.every(k => spanText.toLowerCase().includes(k.toLowerCase()))) {
+      // ★★★新しい方式：HTMLを文字列のまま扱う★★★
+      const paragraphs = text.split(/(<p>.*?<\/p>)/s).filter(p => p.startsWith('<p>'));
+      
+      paragraphs.forEach((p, index) => {
+        const plainText = p.replace(/<[^>]*>/g, "");
+        if (keywords.every(k => plainText.toLowerCase().includes(k.toLowerCase()))) {
           results.push({
             title: f.title,
             url: f.url,
             video: f.video,
-            fragment: spanText,
-            matchIndex: index,
+            fragment: plainText,
+            matchIndex: index, // Pタグの正しい通し番号を保存
           });
         }
       });
@@ -145,94 +145,45 @@ async function showInViewer(result, keywords) {
   try {
     const res = await fetch(result.url);
     if (!res.ok) throw new Error('ファイルの読み込みに失敗しました');
-    const text = await res.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(text, "text/html");
-    const contentBody = doc.body;
+    const originalHtml = await res.text();
 
-    // ★★★ここからが、新しい正しい手順です★★★
-
-    // 手順1：何よりも先に、まっさらな地図で目的の家（span）を探し、旗を立てる
-    const allSpans = contentBody.querySelectorAll('span');
-    const targetSpan = allSpans[result.matchIndex];
-    if (targetSpan) {
-        targetSpan.id = 'jump-target';
+    // ★★★ここからが、新しいフィルム編集方式です★★★
+    let paragraphs = originalHtml.split(/(<p>.*?<\/p>)/s).filter(p => p.startsWith('<p>'));
+    
+    // 手順1：正しい通し番号のPタグに、目印の旗を立てる
+    if (paragraphs[result.matchIndex]) {
+        paragraphs[result.matchIndex] = paragraphs[result.matchIndex].replace('<p>', `<p id="jump-target">`);
     }
 
-    // 手順2：旗を立てた後で、家を増やす作業（タイムリンク化）を行う
-    const walker = document.createTreeWalker(contentBody, NodeFilter.SHOW_TEXT);
-    const textNodes = [];
-    while(walker.nextNode()) textNodes.push(walker.currentNode);
+    // 手順2：全体のHTMLを文字列として再結合
+    let processedHtml = paragraphs.join('\n');
 
-    textNodes.forEach(node => {
-        const timeRegex = /(\d{2}:\d{2}:\d{2})/g;
-        if (!timeRegex.test(node.textContent)) return;
-
-        const fragment = document.createDocumentFragment();
-        const parts = node.textContent.split(timeRegex);
-        
-        parts.forEach((part, index) => {
-            if (index % 2 === 1) {
-                const span = document.createElement('span');
-                span.className = 'time';
-                span.dataset.time = part;
-                span.textContent = part;
-                fragment.appendChild(span);
-            } else if (part) {
-                fragment.appendChild(document.createTextNode(part));
-            }
-        });
-        node.parentNode.replaceChild(fragment, node);
+    // 手順3：文字列全体に対して、タイムリンク化の特殊効果をかける
+    const timeRegex = /(\d{2}:\d{2}:\d{2})(?![^<]*>)/g;
+    processedHtml = processedHtml.replace(timeRegex, (match) => {
+      return `<span class="time" data-time="${match}">${match}</span>`;
     });
 
-    // 手順3：最後に、ペンキを塗る作業（ハイライト）を行う
-    const spansToHighlight = contentBody.querySelectorAll('span');
-    spansToHighlight.forEach(span => {
-        if (keywords.every(k => span.textContent.toLowerCase().includes(k.toLowerCase()))) {
-            const keywordsRegexStr = `(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
-            const keywordsRegex = new RegExp(keywordsRegexStr, 'gi');
-            
-            const textWalker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT);
-            const nodesToProcess = [];
-            while(textWalker.nextNode()) {
-                if (!textWalker.currentNode.parentElement.closest('.time')) {
-                    nodesToProcess.push(textWalker.currentNode);
-                }
-            }
-
-            nodesToProcess.forEach(node => {
-                if (!keywordsRegex.test(node.textContent)) return;
-                const fragment = document.createDocumentFragment();
-                const parts = node.textContent.split(keywordsRegex);
-                const matches = [...node.textContent.matchAll(keywordsRegex)];
-                
-                parts.forEach((part, index) => {
-                    if (part) fragment.appendChild(document.createTextNode(part));
-                    if (index < matches.length) {
-                        const highlightSpan = document.createElement('span');
-                        highlightSpan.className = 'highlight';
-                        highlightSpan.textContent = matches[index][0];
-                        fragment.appendChild(highlightSpan);
-                    }
-                });
-                node.parentNode.replaceChild(fragment, node);
-            });
-        }
+    // 手順4：文字列全体に対して、ハイライトの特殊効果をかける
+    const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+    processedHtml = processedHtml.replace(keywordsRegex, (match) => {
+        // 既にタイムリンクになっている部分はハイライトしない
+        if (match.includes('class="time"')) return match;
+        return `<span class="highlight">${match}</span>`;
     });
 
     // --- 全ての準備完了 ---
 
+    const tempDoc = new DOMParser().parseFromString(processedHtml, "text/html");
+
     viewer.innerHTML = `
       <h2>${result.title}</h2>
+      <div class="talk-text">${tempDoc.body.innerHTML}</div>
       <div id="popupPlayer" class="hidden">
         <button id="closePlayer">×</button>
         <div id="playerContainer"></div>
       </div>
     `;
-    const talkTextDiv = document.createElement('div');
-    talkTextDiv.className = 'talk-text';
-    talkTextDiv.append(...contentBody.childNodes);
-    viewer.appendChild(talkTextDiv);
 
     viewer.querySelectorAll(".time").forEach(el => {
       el.addEventListener("click", () => {
@@ -260,8 +211,7 @@ async function showInViewer(result, keywords) {
       const targetElement = viewer.querySelector(`#jump-target`);
       if (targetElement) {
         targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        const parentP = targetElement.closest('p');
-        const firstTimeLink = parentP ? parentP.querySelector('.time') : null;
+        const firstTimeLink = targetElement.querySelector('.time');
         
         if (firstTimeLink) {
             firstTimeLink.click();
