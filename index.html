@@ -40,6 +40,47 @@
 .highlight {
   background-color: #FFCCE5;
   font-weight: bold;
+
+.talk-text p#jump-target {
+    background-color: #ffcc00; /* ジャンプ先のPタグの背景色 */
+    padding: 0.2em;
+    border-radius: 5px;
+}
+.talk-text p#jump-target .time {
+    font-weight: bold; /* ジャンプ先のタイムリンクを強調 */
+    color: #0066cc;
+}
+
+/* ポップアッププレイヤーのドラッグハンドル */
+#dragHandle {
+    height: 30px; /* ドラッグハンドルの高さ */
+    background: #444; /* ハンドルの背景色を少し明るく */
+    cursor: grab; /* ドラッグできることを示すカーソル */
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #eee; /* アイコンの色 */
+    font-size: 0.8em;
+    position: relative;
+    box-sizing: border-box; /* paddingを含めて高さ計算 */
+    padding-top: 5px; /* アイコンの縦位置調整 */
+}
+#dragHandle::after {
+    content: "≡"; /* ドラッグできることを示すアイコン */
+    font-size: 1.5em;
+    transform: rotate(90deg); /* 横棒3本のアイコンに */
+    line-height: 1;
+    margin-top: -5px; /* 微調整 */
+}
+
+/* ドラッグ中のカーソル */
+#popupPlayer.dragging {
+    cursor: grabbing;
+}
+
+  
 }
 </style>
 </head>
