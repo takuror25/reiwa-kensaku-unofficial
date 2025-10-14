@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>れいわ新選組街宣・おしゃべり会検索（非公式）</title>
+
 <style>
   body { font-family: sans-serif; margin: 2em; line-height: 1.6; }
   input#search {
@@ -21,67 +22,28 @@
     box-shadow: 0 0 5px rgba(0, 123, 255, 0.4);
   }
   .result { margin: 1em 0; cursor: pointer; border-bottom: 1px solid #ccc; padding: 0.5em 0; }
-  .highlight { background-color: #ffb6c1; font-weight: bold; }
   #viewer { margin-top: 2em; white-space: pre-wrap; border-top: 2px solid #666; padding-top: 1em; }
   #note { color: #555; font-size: 0.95em; margin-top: 1em; background: #f6f6f6; padding: 0.8em; border-radius: 8px; }
   .hidden { display: none !important; }
 
-.y { color: #222222; }   
-.q { color: #E91E63; }   
-.r { color: #6A1B9A; }   
-.v { color: #AD1457; }  
+ .y { color: #222222; }   
+ .q { color: #E91E63; }   
+ .r { color: #6A1B9A; }   
+ .v { color: #AD1457; }  
 
-.time {
+ .time {
   color: #1565C0;
   text-decoration: underline;
   cursor: pointer;
-}
+ }
 
-.highlight {
+ .highlight {
   background-color: #FFCCE5;
   font-weight: bold;
+ }
 
-.talk-text p#jump-target {
-    background-color: #ffcc00; /* ジャンプ先のPタグの背景色 */
-    padding: 0.2em;
-    border-radius: 5px;
-}
-.talk-text p#jump-target .time {
-    font-weight: bold; /* ジャンプ先のタイムリンクを強調 */
-    color: #0066cc;
-}
-
-/* ポップアッププレイヤーのドラッグハンドル */
-#dragHandle {
-    height: 30px; /* ドラッグハンドルの高さ */
-    background: #444; /* ハンドルの背景色を少し明るく */
-    cursor: grab; /* ドラッグできることを示すカーソル */
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #eee; /* アイコンの色 */
-    font-size: 0.8em;
-    position: relative;
-    box-sizing: border-box; /* paddingを含めて高さ計算 */
-    padding-top: 5px; /* アイコンの縦位置調整 */
-}
-#dragHandle::after {
-    content: "≡"; /* ドラッグできることを示すアイコン */
-    font-size: 1.5em;
-    transform: rotate(90deg); /* 横棒3本のアイコンに */
-    line-height: 1;
-    margin-top: -5px; /* 微調整 */
-}
-
-/* ドラッグ中のカーソル */
-#popupPlayer.dragging {
-    cursor: grabbing;
-}
-
-/* --- ページの先頭に戻るボタンのための新しいスタイル --- */
-#backToTopButton {
+ /* --- ページの先頭に戻るボタンのための新しいスタイル --- */
+ #backToTopButton {
   position: fixed; /* 画面に固定 */
   bottom: 20px; /* 画面の下から20pxの位置 */
   right: 20px; /* 画面の右から20pxの位置 */
@@ -101,28 +63,26 @@
   transform: translateY(20px); /* 最初は少し下に隠す */
   pointer-events: none; /* 透明な間はクリックできないようにする */
   transition: opacity 0.3s, transform 0.3s;
-}
+ }
 
-/* ボタンが表示されるときのスタイル */
-#backToTopButton.visible {
+ /* ボタンが表示されるときのスタイル */
+ #backToTopButton.visible {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
-}
+ }
 
-#backToTopButton:hover {
+ #backToTopButton:hover {
   background-color: #c3006a; /* マウスが乗った時に少し濃いピンクに */
-}
+ }
 
-#backToTopButton svg {
+ #backToTopButton svg {
   width: 28px;
   height: 28px;
   fill: white;
-}
-
-  
-}
+ }
 </style>
+
 </head>
 <body>
 
