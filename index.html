@@ -97,7 +97,6 @@
 <script src="data/files.js?v=3"></script>
 
 
-
 <script>
 document.getElementById("search").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
@@ -188,34 +187,34 @@ async function showInViewer(result, keywords) {
   try {
     const res = await fetch(result.url);
     if (!res.ok) throw new Error('ファイルの読み込みに失敗しました');
-    const originalHtml = await res.text();
-
+    const text = await res.text();
     const parser = new DOMParser();
-    const doc = parser.parseFromString(originalHtml, "text/html");
+    const doc = parser.parseFromString(text, "text/html");
     const contentBody = doc.body;
 
-    // 手順1：まず、目的のspanタグにジャンプ用のIDを設定する
+    // ★★★ここからが、新しい正しい手順です★★★
+
+    // 手順1：何よりも先に、まっさらな地図で目的の家（span）を探し、旗を立てる
     const allSpans = contentBody.querySelectorAll('span');
     const targetSpan = allSpans[result.matchIndex];
     if (targetSpan) {
         targetSpan.id = 'jump-target';
     }
 
-    // 手順2：タイムスタンプのリンク化
+    // 手順2：旗を立てた後で、家を増やす作業（タイムリンク化）を行う
     const walker = document.createTreeWalker(contentBody, NodeFilter.SHOW_TEXT);
     const textNodes = [];
-    let node;
-    while(node = walker.nextNode()) {
-      textNodes.push(node);
-    }
+    while(walker.nextNode()) textNodes.push(walker.currentNode);
 
     textNodes.forEach(node => {
         const timeRegex = /(\d{2}:\d{2}:\d{2})/g;
         if (!timeRegex.test(node.textContent)) return;
 
         const fragment = document.createDocumentFragment();
-        node.textContent.split(timeRegex).forEach((part, index) => {
-            if (index % 2 === 1) { // 奇数番目がタイムスタンプ
+        const parts = node.textContent.split(timeRegex);
+        
+        parts.forEach((part, index) => {
+            if (index % 2 === 1) {
                 const span = document.createElement('span');
                 span.className = 'time';
                 span.dataset.time = part;
@@ -228,30 +227,25 @@ async function showInViewer(result, keywords) {
         node.parentNode.replaceChild(fragment, node);
     });
 
-    // 手順3：キーワードのハイライト
+    // 手順3：最後に、ペンキを塗る作業（ハイライト）を行う
     const spansToHighlight = contentBody.querySelectorAll('span');
     spansToHighlight.forEach(span => {
-        // 既にタイムリンクになっているspanや、ジャンプ先の親のspanはそのままにする
-        if (span.classList.contains('time')) return; 
-        
         if (keywords.every(k => span.textContent.toLowerCase().includes(k.toLowerCase()))) {
-            const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+            const keywordsRegexStr = `(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
+            const keywordsRegex = new RegExp(keywordsRegexStr, 'gi');
             
             const textWalker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT);
             const nodesToProcess = [];
-            let textNode;
-            while(textNode = textWalker.nextNode()) {
-                // タイムリンクの中のテキストはハイライトしない
-                if (!textNode.parentElement.closest('.time')) {
-                    nodesToProcess.push(textNode);
+            while(textWalker.nextNode()) {
+                if (!textWalker.currentNode.parentElement.closest('.time')) {
+                    nodesToProcess.push(textWalker.currentNode);
                 }
             }
 
             nodesToProcess.forEach(node => {
-                const parts = node.textContent.split(keywordsRegex);
-                if (parts.length <= 1) return;
-
+                if (!keywordsRegex.test(node.textContent)) return;
                 const fragment = document.createDocumentFragment();
+                const parts = node.textContent.split(keywordsRegex);
                 const matches = [...node.textContent.matchAll(keywordsRegex)];
                 
                 parts.forEach((part, index) => {
@@ -268,9 +262,8 @@ async function showInViewer(result, keywords) {
         }
     });
 
-    // --- 全てのDOM加工が完了 ---
+    // --- 全ての準備完了 ---
 
-    // 加工済みDOMをビューアに挿入
     viewer.innerHTML = `
       <h2>${result.title}</h2>
       <div id="popupPlayer" class="hidden">
@@ -281,23 +274,23 @@ async function showInViewer(result, keywords) {
     `;
     const talkTextDiv = document.createElement('div');
     talkTextDiv.className = 'talk-text';
-    // contentBody の子ノードをすべて talkTextDiv に移動
-    while (contentBody.firstChild) {
-      talkTextDiv.appendChild(contentBody.firstChild);
-    }
+    talkTextDiv.append(...contentBody.childNodes);
     viewer.appendChild(talkTextDiv);
 
-    // ドラッグ機能
     const popup = viewer.querySelector("#popupPlayer");
     const dragHandle = viewer.querySelector("#dragHandle");
     let active = false;
     let currentX; let currentY; let initialX; let initialY;
     let xOffset = 0; let yOffset = 0;
-
     const dragStart = (e) => {
-      initialX = (e.type === "touchstart" ? e.touches[0].clientX : e.clientX) - xOffset;
-      initialY = (e.type === "touchstart" ? e.touches[0].clientY : e.clientY) - yOffset;
-      if (e.target === dragHandle || dragHandle.contains(e.target)) { // ハンドル全体がドラッグ対象
+      if (e.type === "touchstart") {
+        initialX = e.touches[0].clientX - xOffset;
+        initialY = e.touches[0].clientY - yOffset;
+      } else {
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+      }
+      if (e.target === dragHandle || dragHandle.contains(e.target)) {
         active = true;
       }
     };
@@ -305,8 +298,13 @@ async function showInViewer(result, keywords) {
     const drag = (e) => {
       if (active) {
         e.preventDefault();
-        currentX = (e.type === "touchmove" ? e.touches[0].clientX : e.clientX) - initialX;
-        currentY = (e.type === "touchmove" ? e.touches[0].clientY : e.clientY) - initialY;
+        if (e.type === "touchmove") {
+          currentX = e.touches[0].clientX - initialX;
+          currentY = e.touches[0].clientY - initialY;
+        } else {
+          currentX = e.clientX - initialX;
+          currentY = e.clientY - initialY;
+        }
         xOffset = currentX; yOffset = currentY;
         popup.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
       }
@@ -318,7 +316,6 @@ async function showInViewer(result, keywords) {
     viewer.addEventListener("mouseup", dragEnd, false);
     viewer.addEventListener("mousemove", drag, false);
 
-    // タイムリンクのクリックイベント
     viewer.querySelectorAll(".time").forEach(el => {
       el.addEventListener("click", () => {
         const time = el.dataset.time;
@@ -334,26 +331,23 @@ async function showInViewer(result, keywords) {
       });
     });
     
-    // 閉じるボタンのイベント
     viewer.querySelector("#closePlayer").addEventListener("click", () => {
       popup.classList.add("hidden");
       viewer.querySelector("#playerContainer").innerHTML = "";
     });
     
-    // ジャンプと自動再生
     setTimeout(() => {
       const targetElement = viewer.querySelector(`#jump-target`);
       if (targetElement) {
         targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        const firstTimeLink = targetElement.querySelector('.time');
-        
+        const parentP = targetElement.closest('p');
+        const firstTimeLink = parentP ? parentP.querySelector('.time') : null;
         if (firstTimeLink) {
             firstTimeLink.click();
         }
       }
     }, 200);
 
-    // ポップアッププレイヤーのスタイル（一度だけ追加）
     if (!document.getElementById('popup-player-style')) {
         const style = document.createElement("style");
         style.id = 'popup-player-style';
