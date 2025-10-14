@@ -55,6 +55,7 @@
 
 <script src="data/files.js?v=3"></script>
 
+
 <script>
 document.getElementById("search").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
@@ -73,7 +74,6 @@ document.getElementById("search").addEventListener("input", async (e) => {
       if (!res.ok) continue;
       const text = await res.text();
 
-      // ★★★新しい方式：HTMLを文字列のまま扱う★★★
       const paragraphs = text.split(/(<p>.*?<\/p>)/s).filter(p => p.startsWith('<p>'));
       
       paragraphs.forEach((p, index) => {
@@ -84,7 +84,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
             url: f.url,
             video: f.video,
             fragment: plainText,
-            matchIndex: index, // Pタグの正しい通し番号を保存
+            matchIndex: index,
           });
         }
       });
@@ -147,32 +147,24 @@ async function showInViewer(result, keywords) {
     if (!res.ok) throw new Error('ファイルの読み込みに失敗しました');
     const originalHtml = await res.text();
 
-    // ★★★ここからが、新しいフィルム編集方式です★★★
     let paragraphs = originalHtml.split(/(<p>.*?<\/p>)/s).filter(p => p.startsWith('<p>'));
     
-    // 手順1：正しい通し番号のPタグに、目印の旗を立てる
     if (paragraphs[result.matchIndex]) {
         paragraphs[result.matchIndex] = paragraphs[result.matchIndex].replace('<p>', `<p id="jump-target">`);
     }
 
-    // 手順2：全体のHTMLを文字列として再結合
     let processedHtml = paragraphs.join('\n');
 
-    // 手順3：文字列全体に対して、タイムリンク化の特殊効果をかける
     const timeRegex = /(\d{2}:\d{2}:\d{2})(?![^<]*>)/g;
     processedHtml = processedHtml.replace(timeRegex, (match) => {
       return `<span class="time" data-time="${match}">${match}</span>`;
     });
 
-    // 手順4：文字列全体に対して、ハイライトの特殊効果をかける
     const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
     processedHtml = processedHtml.replace(keywordsRegex, (match) => {
-        // 既にタイムリンクになっている部分はハイライトしない
         if (match.includes('class="time"')) return match;
         return `<span class="highlight">${match}</span>`;
     });
-
-    // --- 全ての準備完了 ---
 
     const tempDoc = new DOMParser().parseFromString(processedHtml, "text/html");
 
@@ -181,9 +173,63 @@ async function showInViewer(result, keywords) {
       <div class="talk-text">${tempDoc.body.innerHTML}</div>
       <div id="popupPlayer" class="hidden">
         <button id="closePlayer">×</button>
-        <div id="playerContainer"></div>
+        <div id="dragHandle"></div> <div id="playerContainer"></div>
       </div>
     `;
+
+    // ★★★ここからドラッグ機能の追加★★★
+    const popup = viewer.querySelector("#popupPlayer");
+    const dragHandle = viewer.querySelector("#dragHandle");
+    let isDragging = false;
+    let offsetX, offsetY;
+
+    // 初期位置を設定 (画面右下から少し離れた位置)
+    const initialWidth = 300; // 例として初期幅を設定 (CSSで上書きされる可能性あり)
+    const initialHeight = initialWidth * 9 / 16 + 30; // 16:9 + ハンドル高さ (例)
+    popup.style.left = `${window.innerWidth - initialWidth - 20}px`;
+    popup.style.top = `${window.innerHeight - initialHeight - 20}px`;
+
+
+    const startDrag = (e) => {
+        isDragging = true;
+        // ポップアップ内のどこをクリックしたか（タッチしたか）を記録
+        offsetX = e.clientX - popup.getBoundingClientRect().left;
+        offsetY = e.clientY - popup.getBoundingClientRect().top;
+        popup.style.cursor = 'grabbing';
+        e.preventDefault(); // テキスト選択などを防止
+    };
+
+    const doDrag = (e) => {
+        if (!isDragging) return;
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+
+        if (e.touches && e.touches.length > 0) { // タッチイベントの場合
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        }
+
+        // ポップアップを移動
+        popup.style.left = `${clientX - offsetX}px`;
+        popup.style.top = `${clientY - offsetY}px`;
+    };
+
+    const stopDrag = () => {
+        isDragging = false;
+        popup.style.cursor = 'grab';
+    };
+
+    // マウスイベント
+    dragHandle.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+
+    // タッチイベント
+    dragHandle.addEventListener('touchstart', startDrag);
+    document.addEventListener('touchmove', doDrag);
+    document.addEventListener('touchend', stopDrag);
+    // ★★★ドラッグ機能ここまで★★★
+
 
     viewer.querySelectorAll(".time").forEach(el => {
       el.addEventListener("click", () => {
@@ -194,7 +240,6 @@ async function showInViewer(result, keywords) {
         const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
         const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
         
-        const popup = viewer.querySelector("#popupPlayer");
         const playerContainer = viewer.querySelector("#playerContainer");
         playerContainer.innerHTML = `<iframe src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
         popup.classList.remove("hidden");
@@ -219,15 +264,96 @@ async function showInViewer(result, keywords) {
       }
     }, 200);
 
+    // スタイルを再追加（念のため。通常は一度で良い）
     if (!document.getElementById('popup-player-style')) {
         const style = document.createElement("style");
         style.id = 'popup-player-style';
         style.textContent = `
-            #popupPlayer { position: fixed; bottom: 10px; right: 10px; width: 50vw; max-width: 560px; background: #000; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 9999; }
-            #playerContainer { position: relative; width: 100%; padding-top: 56.25%; }
-            #playerContainer iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
-            #closePlayer { background: #e53935; color: white; border: none; font-size: 1.5em; cursor: pointer; position: absolute; top: -15px; right: -15px; width: 30px; height: 30px; border-radius: 50%; z-index: 3; display: flex; align-items: center; justify-content: center; line-height: 1; }
-            @media (max-width: 768px) { #popupPlayer { width: 90vw; left: 5vw; right: 5vw; } }
+            #popupPlayer { 
+                position: fixed; 
+                width: 300px; /* デフォルトの幅 */
+                height: auto; /* 高さはコンテンツに合わせる */
+                background: #000; 
+                border-radius: 10px; 
+                box-shadow: 0 4px 16px rgba(0,0,0,0.5); 
+                z-index: 9999; 
+                display: flex; /* flexboxで中身を配置 */
+                flex-direction: column; /* 縦方向に並べる */
+                overflow: hidden; /* 角丸で隠れる部分を処理 */
+                cursor: grab; /* ドラッグできることを示すカーソル */
+            }
+            #dragHandle {
+                height: 30px; /* ドラッグハンドルの高さ */
+                background: #333; /* ハンドルの背景色 */
+                cursor: grab; /* ドラッグできることを示すカーソル */
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #ccc;
+                font-size: 0.8em;
+                opacity: 0.8;
+                position: relative;
+            }
+            #dragHandle::after {
+                content: "≡"; /* ドラッグできることを示すアイコン */
+                font-size: 1.5em;
+                transform: rotate(90deg);
+                line-height: 1;
+                margin-top: -5px; /* 微調整 */
+            }
+            #playerContainer { 
+                position: relative; 
+                width: 100%; 
+                padding-top: 56.25%; /* 16:9 のアスペクト比を維持 */
+                flex-grow: 1; /* 残りのスペースを埋める */
+            }
+            #playerContainer iframe { 
+                position: absolute; 
+                top: 0; 
+                left: 0; 
+                width: 100%; 
+                height: 100%; 
+                border: none;
+                object-fit: cover; /* ★黒帯をなくすための修正★ */
+            }
+            #closePlayer { 
+                background: #e53935; 
+                color: white; 
+                border: none; 
+                font-size: 1.5em; 
+                cursor: pointer; 
+                position: absolute; 
+                top: 5px; /* ハンドル内ではなく、全体の右上へ */
+                right: 5px; 
+                width: 25px; /* 少し小さく */
+                height: 25px; 
+                border-radius: 50%; 
+                z-index: 3; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                line-height: 1;
+            }
+            @media (max-width: 768px) { 
+                #popupPlayer { 
+                    width: 90vw; 
+                    /* topとleftはJavaScriptで動的に設定するため、ここでは初期値のみ */
+                    left: 5vw; 
+                    top: auto; /* 画面下部に配置 */
+                    bottom: 10px;
+                    max-width: none; /* スマホでは最大幅をなくす */
+                } 
+                /* スマホでのドラッグハンドルアイコン調整 */
+                #dragHandle::after {
+                    font-size: 1.8em; /* 少し大きく */
+                }
+                #closePlayer {
+                    top: 8px; /* スマホで位置を微調整 */
+                    right: 8px;
+                }
+            }
         `;
         document.head.appendChild(style);
     }
@@ -238,6 +364,6 @@ async function showInViewer(result, keywords) {
   }
 }
 </script>
-
+  
 </body>
 </html>
