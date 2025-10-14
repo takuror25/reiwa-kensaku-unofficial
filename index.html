@@ -162,31 +162,43 @@ const tempDiv = document.createElement("div");
 tempDiv.innerHTML = finalText;
 
 function linkifyTimeNodes(node) {
-  if (node.nodeType === 3) {
+  // テキストノードなら、タイムスタンプを探してリンク化する
+  if (node.nodeType === 3) { // 3はテキストノードのこと
     const regex = /(\d{2}:\d{2}:\d{2})/g;
     if (regex.test(node.textContent)) {
       const frag = document.createDocumentFragment();
-      let last = 0;
-      node.textContent.replace(regex, (m, _p1, idx) => {
-        if (idx > last) frag.appendChild(document.createTextNode(node.textContent.slice(last, idx)));
+      let lastIndex = 0;
+      // 正規表現にマッチした部分を置換していく
+      node.textContent.replace(regex, (match, time, offset) => {
+        // マッチした部分より前のテキストを追加
+        if (offset > lastIndex) {
+          frag.appendChild(document.createTextNode(node.textContent.slice(lastIndex, offset)));
+        }
+        // タイムスタンプをspanタグで囲んでリンクにする
         const span = document.createElement("span");
         span.className = "time";
-        span.dataset.time = m;
-        span.textContent = m;
+        span.dataset.time = time;
+        span.textContent = time;
         frag.appendChild(span);
-        last = idx + m.length;
+        lastIndex = offset + match.length;
       });
-      if (last < node.textContent.length) {
-        frag.appendChild(document.createTextNode(node.textContent.slice(last)));
+      // 残りのテキストを追加
+      if (lastIndex < node.textContent.length) {
+        frag.appendChild(document.createTextNode(node.textContent.slice(lastIndex)));
       }
+      // 元のテキストノードを、新しく作った要素群に置き換える
       node.parentNode.replaceChild(frag, node);
     }
-  } else if (node.nodeType === 1 && node.childNodes) {
-    node.childNodes.forEach(linkifyTimeNodes);
+  } 
+  // 要素ノード（<p>タグなど）で、子要素があれば、その子要素に対しても同じ処理を繰り返す
+  else if (node.nodeType === 1 && node.childNodes.length > 0) {
+    // ★★★ここが修正点！★★★
+    // ループ中に中身を書き換えても大丈夫なように、リストのコピーを作ってからループする
+    [...node.childNodes].forEach(linkifyTimeNodes);
   }
 }
 linkifyTimeNodes(tempDiv);
-finalText = tempDiv.innerHTML;   // ← ここでリンク化済みHTMLに置き換え
+finalText = tempDiv.innerHTML; 
 
   
   // HTMLに挿入
