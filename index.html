@@ -26,7 +26,7 @@
   #note { color: #555; font-size: 0.95em; margin-top: 1em; background: #f6f6f6; padding: 0.8em; border-radius: 8px; }
   .hidden { display: none !important; }
 
- .y { color: #222222; }   
+.y { color: #222222; }   
 .q { color: #E91E63; }   
 .r { color: #6A1B9A; }   
 .v { color: #AD1457; }  
@@ -80,6 +80,46 @@
     cursor: grabbing;
 }
 
+/* --- ページの先頭に戻るボタンのための新しいスタイル --- */
+#backToTopButton {
+  position: fixed; /* 画面に固定 */
+  bottom: 20px; /* 画面の下から20pxの位置 */
+  right: 20px; /* 画面の右から20pxの位置 */
+  width: 50px;
+  height: 50px;
+  background-color: #e4007e; /* ご指定のピンク色 */
+  color: white;
+  border: 2px solid white;
+  border-radius: 50%; /* 丸い形 */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 9990; /* プレイヤーよりは手前に来ないように調整 */
+  opacity: 0; /* 最初は透明 */
+  transform: translateY(20px); /* 最初は少し下に隠す */
+  pointer-events: none; /* 透明な間はクリックできないようにする */
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+/* ボタンが表示されるときのスタイル */
+#backToTopButton.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+#backToTopButton:hover {
+  background-color: #c3006a; /* マウスが乗った時に少し濃いピンクに */
+}
+
+#backToTopButton svg {
+  width: 28px;
+  height: 28px;
+  fill: white;
+}
+
   
 }
 </style>
@@ -96,8 +136,33 @@
 
 <script src="data/files.js?v=3"></script>
 
-
 <script>
+// ★★★ここからが新しい部分です★★★
+// 「ページの先頭に戻るボタン」を作成してページに追加する
+const backToTopButton = document.createElement('button');
+backToTopButton.id = 'backToTopButton';
+backToTopButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>`;
+document.body.appendChild(backToTopButton);
+
+// ボタンがクリックされたら、ページの先頭にスムーズにスクロールする
+backToTopButton.addEventListener('click', () => {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  });
+});
+
+// ページがスクロールされたら、ボタンを表示／非表示にする
+window.addEventListener('scroll', () => {
+  if (window.scrollY > 200) { // 200px以上スクロールしたら
+    backToTopButton.classList.add('visible'); // ボタンを表示
+  } else {
+    backToTopButton.classList.remove('visible'); // ボタンを非表示
+  }
+});
+// ★★★新しい部分はここまでです★★★
+
+
 document.getElementById("search").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
   const resultsDiv = document.getElementById("results");
@@ -145,10 +210,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
   note.innerHTML = `
     <strong>結果の見方：</strong><br>
     検索したワードを含む部分を一覧で表示します。<br>
-    一覧の中からどれかをクリックすると、該当箇所にスクロールし動画を再生できます。<br>
-    ※AIを使用して文字化しているため、文章は内容が不正確な部分や誤字が発生します。<br>
-    ※正確な情報源としては、再生される公式YouTubeをご確認ください。<br>
-    ※動画に広告が入るのはYouTube側の仕様であり、収益目的ではありません。
+    一覧の中からどれかをクリックすると、全文が開き、該当箇所にスクロールし、動画が自動再生されます。
   `;
   resultsDiv.appendChild(note);
 
@@ -195,16 +257,12 @@ async function showInViewer(result, keywords) {
     const doc = parser.parseFromString(text, "text/html");
     const contentBody = doc.body;
 
-    // ★★★ここからが、新しい正しい手順です★★★
-
-    // 手順1：何よりも先に、まっさらな地図で目的の家（span）を探し、旗を立てる
     const allSpans = contentBody.querySelectorAll('span');
     const targetSpan = allSpans[result.matchIndex];
     if (targetSpan) {
         targetSpan.id = 'jump-target';
     }
 
-    // 手順2：旗を立てた後で、家を増やす作業（タイムリンク化）を行う
     const walker = document.createTreeWalker(contentBody, NodeFilter.SHOW_TEXT);
     const textNodes = [];
     while(walker.nextNode()) textNodes.push(walker.currentNode);
@@ -212,11 +270,8 @@ async function showInViewer(result, keywords) {
     textNodes.forEach(node => {
         const timeRegex = /(\d{2}:\d{2}:\d{2})/g;
         if (!timeRegex.test(node.textContent)) return;
-
         const fragment = document.createDocumentFragment();
-        const parts = node.textContent.split(timeRegex);
-        
-        parts.forEach((part, index) => {
+        node.textContent.split(timeRegex).forEach((part, index) => {
             if (index % 2 === 1) {
                 const span = document.createElement('span');
                 span.className = 'time';
@@ -230,13 +285,10 @@ async function showInViewer(result, keywords) {
         node.parentNode.replaceChild(fragment, node);
     });
 
-    // 手順3：最後に、ペンキを塗る作業（ハイライト）を行う
     const spansToHighlight = contentBody.querySelectorAll('span');
     spansToHighlight.forEach(span => {
         if (keywords.every(k => span.textContent.toLowerCase().includes(k.toLowerCase()))) {
-            const keywordsRegexStr = `(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
-            const keywordsRegex = new RegExp(keywordsRegexStr, 'gi');
-            
+            const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
             const textWalker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT);
             const nodesToProcess = [];
             while(textWalker.nextNode()) {
@@ -244,13 +296,11 @@ async function showInViewer(result, keywords) {
                     nodesToProcess.push(textWalker.currentNode);
                 }
             }
-
             nodesToProcess.forEach(node => {
                 if (!keywordsRegex.test(node.textContent)) return;
                 const fragment = document.createDocumentFragment();
                 const parts = node.textContent.split(keywordsRegex);
                 const matches = [...node.textContent.matchAll(keywordsRegex)];
-                
                 parts.forEach((part, index) => {
                     if (part) fragment.appendChild(document.createTextNode(part));
                     if (index < matches.length) {
@@ -264,8 +314,6 @@ async function showInViewer(result, keywords) {
             });
         }
     });
-
-    // --- 全ての準備完了 ---
 
     viewer.innerHTML = `
       <h2>${result.title}</h2>
@@ -286,14 +334,10 @@ async function showInViewer(result, keywords) {
     let currentX; let currentY; let initialX; let initialY;
     let xOffset = 0; let yOffset = 0;
     const dragStart = (e) => {
-      if (e.type === "touchstart") {
-        initialX = e.touches[0].clientX - xOffset;
-        initialY = e.touches[0].clientY - yOffset;
-      } else {
-        initialX = e.clientX - xOffset;
-        initialY = e.clientY - yOffset;
-      }
-      if (e.target === dragHandle || dragHandle.contains(e.target)) {
+      let evt = e.type === 'touchstart' ? e.touches[0] : e;
+      initialX = evt.clientX - xOffset;
+      initialY = evt.clientY - yOffset;
+      if (e.target.closest('#dragHandle')) {
         active = true;
       }
     };
@@ -301,24 +345,21 @@ async function showInViewer(result, keywords) {
     const drag = (e) => {
       if (active) {
         e.preventDefault();
-        if (e.type === "touchmove") {
-          currentX = e.touches[0].clientX - initialX;
-          currentY = e.touches[0].clientY - initialY;
-        } else {
-          currentX = e.clientX - initialX;
-          currentY = e.clientY - initialY;
-        }
-        xOffset = currentX; yOffset = currentY;
+        let evt = e.type === 'touchmove' ? e.touches[0] : e;
+        currentX = evt.clientX - initialX;
+        currentY = evt.clientY - initialY;
+        xOffset = currentX;
+        yOffset = currentY;
         popup.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
       }
     };
-    dragHandle.addEventListener("touchstart", dragStart, false);
-    viewer.addEventListener("touchend", dragEnd, false);
-    viewer.addEventListener("touchmove", drag, false);
-    dragHandle.addEventListener("mousedown", dragStart, false);
-    viewer.addEventListener("mouseup", dragEnd, false);
-    viewer.addEventListener("mousemove", drag, false);
-
+    dragHandle.addEventListener("touchstart", dragStart, { passive: false });
+    viewer.addEventListener("touchend", dragEnd, { passive: false });
+    viewer.addEventListener("touchmove", drag, { passive: false });
+    dragHandle.addEventListener("mousedown", dragStart, { passive: false });
+    viewer.addEventListener("mouseup", dragEnd, { passive: false });
+    viewer.addEventListener("mousemove", drag, { passive: false });
+    
     viewer.querySelectorAll(".time").forEach(el => {
       el.addEventListener("click", () => {
         const time = el.dataset.time;
@@ -378,7 +419,6 @@ async function showInViewer(result, keywords) {
         `;
         document.head.appendChild(style);
     }
-
   } catch (err) {
     viewer.innerHTML = "コンテンツの読み込みに失敗しました。";
     console.error("showInViewerでエラー:", err);
