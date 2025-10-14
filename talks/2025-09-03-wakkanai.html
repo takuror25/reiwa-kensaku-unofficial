@@ -313,22 +313,6 @@
 <p><span class="y">01:53:49<br>
 総理大臣先ほどありました。もうすぐ首切られるかもしれない。なんとかそれを抵抗しようとしているこの国の最高権力者と思われてる総理大臣はただの雇われ店長ですからあなたこそがこの国の最高権力者。あなたの力がなければ変えられない。あなたがいなきゃ始まらないってことです。どうか力を合わせてこの国を一緒に変えていきたい。どうかその先頭にれいわ新選組に立たせてください。今日は、お時間、非常に皆さん大変な中ですね。都合していただいてこうやってお話を聞いていただいてありがとうございました。それではこの後写真撮ってまいります。それでは今日はありがとうございました。ありがとうございます。</span> </p>
 
-<script>
-const baseURL = "https://www.youtube.com/live/3Lc0U6-RGYA"; // ← 対応する公式動画のURLに変更
-
-// タイム形式を探してリンク化（例: 01:41:18）
-document.body.innerHTML = document.body.innerHTML.replace(
-  /(\b\d{1,2}:\d{2}:\d{2}\b)/g,
-  '<a class="time-link" href="' + baseURL + '?t=$1" target="_blank">$1</a>'
-);
-
-// 時刻を秒に直して ?t=秒 の形式に修正
-document.querySelectorAll('.time-link').forEach(a => {
-  const parts = a.textContent.split(':').map(Number);
-  const seconds = parts[0]*3600 + parts[1]*60 + parts[2];
-  a.href = baseURL + '?t=' + seconds + 's';
-});
-</script>
 
 </body>
 </html>
