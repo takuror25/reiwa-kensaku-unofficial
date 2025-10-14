@@ -97,6 +97,7 @@
 <script src="data/files.js?v=3"></script>
 
 
+
 <script>
 document.getElementById("search").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
@@ -114,19 +115,19 @@ document.getElementById("search").addEventListener("input", async (e) => {
       const res = await fetch(f.url);
       if (!res.ok) continue;
       const text = await res.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, "text/html");
 
-      // ★★★新しい方式：HTMLを文字列のまま扱う★★★
-      const paragraphs = text.split(/(<p>.*?<\/p>)/s).filter(p => p.startsWith('<p>'));
-      
-      paragraphs.forEach((p, index) => {
-        const plainText = p.replace(/<[^>]*>/g, "");
-        if (keywords.every(k => plainText.toLowerCase().includes(k.toLowerCase()))) {
+      const contentSpans = doc.body.querySelectorAll('span');
+      contentSpans.forEach((span, index) => {
+        const spanText = span.textContent;
+        if (keywords.every(k => spanText.toLowerCase().includes(k.toLowerCase()))) {
           results.push({
             title: f.title,
             url: f.url,
             video: f.video,
-            fragment: plainText,
-            matchIndex: index, // Pタグの正しい通し番号を保存
+            fragment: spanText,
+            matchIndex: index,
           });
         }
       });
@@ -189,55 +190,116 @@ async function showInViewer(result, keywords) {
     if (!res.ok) throw new Error('ファイルの読み込みに失敗しました');
     const originalHtml = await res.text();
 
-    // ★★★ここからが、新しいフィルム編集方式です★★★
-    let paragraphs = originalHtml.split(/(<p>.*?<\/p>)/s).filter(p => p.startsWith('<p>'));
-    
-    // 手順1：正しい通し番号のPタグに、目印の旗を立てる
-    if (paragraphs[result.matchIndex]) {
-        paragraphs[result.matchIndex] = paragraphs[result.matchIndex].replace('<p>', `<p id="jump-target">`);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(originalHtml, "text/html");
+    const contentBody = doc.body;
+
+    // 手順1：まず、目的のspanタグにジャンプ用のIDを設定する
+    const allSpans = contentBody.querySelectorAll('span');
+    const targetSpan = allSpans[result.matchIndex];
+    if (targetSpan) {
+        targetSpan.id = 'jump-target';
     }
 
-    // 手順2：全体のHTMLを文字列として再結合
-    let processedHtml = paragraphs.join('\n');
+    // 手順2：タイムスタンプのリンク化
+    const walker = document.createTreeWalker(contentBody, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let node;
+    while(node = walker.nextNode()) {
+      textNodes.push(node);
+    }
 
-    // 手順3：文字列全体に対して、タイムリンク化の特殊効果をかける
-    const timeRegex = /(\d{2}:\d{2}:\d{2})(?![^<]*>)/g;
-    processedHtml = processedHtml.replace(timeRegex, (match) => {
-      return `<span class="time" data-time="${match}">${match}</span>`;
+    textNodes.forEach(node => {
+        const timeRegex = /(\d{2}:\d{2}:\d{2})/g;
+        if (!timeRegex.test(node.textContent)) return;
+
+        const fragment = document.createDocumentFragment();
+        node.textContent.split(timeRegex).forEach((part, index) => {
+            if (index % 2 === 1) { // 奇数番目がタイムスタンプ
+                const span = document.createElement('span');
+                span.className = 'time';
+                span.dataset.time = part;
+                span.textContent = part;
+                fragment.appendChild(span);
+            } else if (part) {
+                fragment.appendChild(document.createTextNode(part));
+            }
+        });
+        node.parentNode.replaceChild(fragment, node);
     });
 
-    // 手順4：文字列全体に対して、ハイライトの特殊効果をかける
-    processedHtml = processedHtml.replace(/<p(.*?)>(.*?)<\/p>/gs, (match, pAttributes, pContent) => {
-        if (keywords.every(k => pContent.replace(/<[^>]*>/g, '').toLowerCase().includes(k.toLowerCase()))) {
+    // 手順3：キーワードのハイライト
+    const spansToHighlight = contentBody.querySelectorAll('span');
+    spansToHighlight.forEach(span => {
+        // 既にタイムリンクになっているspanや、ジャンプ先の親のspanはそのままにする
+        if (span.classList.contains('time')) return; 
+        
+        if (keywords.every(k => span.textContent.toLowerCase().includes(k.toLowerCase()))) {
             const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
-            const highlightedContent = pContent.replace(keywordsRegex, `<span class="highlight">$1</span>`);
-            return `<p${pAttributes}>${highlightedContent}</p>`;
+            
+            const textWalker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT);
+            const nodesToProcess = [];
+            let textNode;
+            while(textNode = textWalker.nextNode()) {
+                // タイムリンクの中のテキストはハイライトしない
+                if (!textNode.parentElement.closest('.time')) {
+                    nodesToProcess.push(textNode);
+                }
+            }
+
+            nodesToProcess.forEach(node => {
+                const parts = node.textContent.split(keywordsRegex);
+                if (parts.length <= 1) return;
+
+                const fragment = document.createDocumentFragment();
+                const matches = [...node.textContent.matchAll(keywordsRegex)];
+                
+                parts.forEach((part, index) => {
+                    if (part) fragment.appendChild(document.createTextNode(part));
+                    if (index < matches.length) {
+                        const highlightSpan = document.createElement('span');
+                        highlightSpan.className = 'highlight';
+                        highlightSpan.textContent = matches[index][0];
+                        fragment.appendChild(highlightSpan);
+                    }
+                });
+                node.parentNode.replaceChild(fragment, node);
+            });
         }
-        return match;
     });
 
-    // --- 全ての準備完了 ---
+    // --- 全てのDOM加工が完了 ---
 
+    // 加工済みDOMをビューアに挿入
     viewer.innerHTML = `
       <h2>${result.title}</h2>
-      <div class="talk-text">${processedHtml}</div>
       <div id="popupPlayer" class="hidden">
         <div id="dragHandle"><div class="grip"></div></div>
         <button id="closePlayer">×</button>
         <div id="playerContainer"></div>
       </div>
     `;
-    
+    const talkTextDiv = document.createElement('div');
+    talkTextDiv.className = 'talk-text';
+    // contentBody の子ノードをすべて talkTextDiv に移動
+    while (contentBody.firstChild) {
+      talkTextDiv.appendChild(contentBody.firstChild);
+    }
+    viewer.appendChild(talkTextDiv);
+
     // ドラッグ機能
     const popup = viewer.querySelector("#popupPlayer");
     const dragHandle = viewer.querySelector("#dragHandle");
     let active = false;
     let currentX; let currentY; let initialX; let initialY;
     let xOffset = 0; let yOffset = 0;
+
     const dragStart = (e) => {
       initialX = (e.type === "touchstart" ? e.touches[0].clientX : e.clientX) - xOffset;
       initialY = (e.type === "touchstart" ? e.touches[0].clientY : e.clientY) - yOffset;
-      if (e.target === dragHandle) active = true;
+      if (e.target === dragHandle || dragHandle.contains(e.target)) { // ハンドル全体がドラッグ対象
+        active = true;
+      }
     };
     const dragEnd = () => { active = false; };
     const drag = (e) => {
@@ -256,6 +318,7 @@ async function showInViewer(result, keywords) {
     viewer.addEventListener("mouseup", dragEnd, false);
     viewer.addEventListener("mousemove", drag, false);
 
+    // タイムリンクのクリックイベント
     viewer.querySelectorAll(".time").forEach(el => {
       el.addEventListener("click", () => {
         const time = el.dataset.time;
@@ -271,11 +334,13 @@ async function showInViewer(result, keywords) {
       });
     });
     
+    // 閉じるボタンのイベント
     viewer.querySelector("#closePlayer").addEventListener("click", () => {
       popup.classList.add("hidden");
       viewer.querySelector("#playerContainer").innerHTML = "";
     });
     
+    // ジャンプと自動再生
     setTimeout(() => {
       const targetElement = viewer.querySelector(`#jump-target`);
       if (targetElement) {
@@ -288,6 +353,7 @@ async function showInViewer(result, keywords) {
       }
     }, 200);
 
+    // ポップアッププレイヤーのスタイル（一度だけ追加）
     if (!document.getElementById('popup-player-style')) {
         const style = document.createElement("style");
         style.id = 'popup-player-style';
@@ -322,7 +388,6 @@ async function showInViewer(result, keywords) {
   }
 }
 </script>
-
 
   
 </body>
