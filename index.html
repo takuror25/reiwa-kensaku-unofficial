@@ -74,16 +74,12 @@ document.getElementById("search").addEventListener("input", async (e) => {
       const text = await res.text();
       const plain = text.replace(/<[^>]*>/g, "");
 
-      // ★★★ここが修正点！★★★
-      // キーワードのどれか一つにでもマッチする場所を探す正規表現
       const contextRegex = new RegExp(`(.{0,80})(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(.{0,80})`, "gi");
       
       let match;
-      // ファイルの最後までループして、すべての一致箇所を探す
       while ((match = contextRegex.exec(plain)) !== null) {
         const fragment = match[0];
         
-        // 切り取った断片（fragment）に「すべてのキーワード」が含まれているかチェック
         if (keywords.every(k => fragment.toLowerCase().includes(k.toLowerCase()))) {
           results.push({
             title: f.title,
@@ -91,8 +87,6 @@ document.getElementById("search").addEventListener("input", async (e) => {
             video: f.video,
             fragment: fragment,
           });
-          // 以前ここにあった「break;」を削除しました！
-          // これで、ファイル内で次の候補も探し続けます。
         }
       }
     } catch (err) {
@@ -140,35 +134,82 @@ async function showInViewer(result, keywords) {
     const text = await res.text();
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, "text/html");
-    const talkTextDiv = doc.body;
+    const contentBody = doc.body;
 
-    // 処理を簡略化：HTML全体を一度に処理する
-    let processedHtml = talkTextDiv.innerHTML;
+    // ★★★ここからが修正の本番！★★★
+    // DOM（レゴブロックの構造）を直接歩き回りながら処理する関数
+    function walkAndProcess(node) {
+      // テキストノード（文字が書かれたブロック）だけを処理の対象にする
+      if (node.nodeType === 3) {
+        const parent = node.parentNode;
+        if (!parent) return;
 
-    // タイムスタンプを一度にリンク化
-    processedHtml = processedHtml.replace(/(\d{2}:\d{2}:\d{2})(?![^<]*>)/g, (match) => {
-        return `<span class="time" data-time="${match}">${match}</span>`;
-    });
-
-    // キーワードをハイライト
-    const paragraphs = processedHtml.split(/(<p.*?>.*?<\/p>)/);
-    processedHtml = paragraphs.map(p => {
-        if (!p.startsWith('<p')) return p;
-        if (keywords.every(k => p.replace(/<[^>]*>/g, '').toLowerCase().includes(k.toLowerCase()))) {
-            const keywordsRegex = new RegExp(keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
-            return p.replace(keywordsRegex, match => `<span class="highlight">${match}</span>`);
+        // タイムスタンプをリンク化
+        const timeRegex = /(\d{2}:\d{2}:\d{2})/g;
+        if (timeRegex.test(node.textContent)) {
+            const parts = node.textContent.split(timeRegex);
+            const fragment = document.createDocumentFragment();
+            for(let i = 0; i < parts.length; i++) {
+                if (i % 2 === 1) { // 奇数番目がタイムスタンプ
+                    const span = document.createElement('span');
+                    span.className = 'time';
+                    span.dataset.time = parts[i];
+                    span.textContent = parts[i];
+                    fragment.appendChild(span);
+                } else if (parts[i]) {
+                    fragment.appendChild(document.createTextNode(parts[i]));
+                }
+            }
+            parent.replaceChild(fragment, node);
+            // 新しく作られたテキストノードも処理対象にする
+            walkAndProcess(parent); 
+            return;
         }
-        return p;
-    }).join('');
 
+        // キーワードをハイライト
+        const keywordsRegex = new RegExp(keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
+        if (keywords.every(k => parent.textContent.toLowerCase().includes(k.toLowerCase())) && keywordsRegex.test(node.textContent)) {
+            const parts = node.textContent.split(keywordsRegex);
+            const matches = [...node.textContent.matchAll(keywordsRegex)];
+            const fragment = document.createDocumentFragment();
+
+            for(let i = 0; i < parts.length; i++) {
+                if (parts[i]) {
+                    fragment.appendChild(document.createTextNode(parts[i]));
+                }
+                if (i < matches.length) {
+                    const span = document.createElement('span');
+                    span.className = 'highlight';
+                    span.textContent = matches[i][0];
+                    fragment.appendChild(span);
+                }
+            }
+            parent.replaceChild(fragment, node);
+        }
+
+      } 
+      // テキスト以外の要素ノードなら、その子要素をたどっていく
+      else if (node.nodeType === 1 && node.childNodes) {
+        // ループ中に中身を書き換えても大丈夫なようにコピーを作ってからループする
+        [...node.childNodes].forEach(walkAndProcess);
+      }
+    }
+
+    // 作成した関数を実行して、DOMを加工する
+    walkAndProcess(contentBody);
+
+    // 加工済みのHTMLをページに表示
     viewer.innerHTML = `
       <h2>${result.title}</h2>
-      <div class="talk-text">${processedHtml}</div>
       <div id="popupPlayer" class="hidden">
         <button id="closePlayer">×</button>
         <div id="playerContainer"></div>
       </div>
     `;
+    const talkTextDiv = document.createElement('div');
+    talkTextDiv.className = 'talk-text';
+    talkTextDiv.append(...contentBody.childNodes);
+    viewer.appendChild(talkTextDiv);
 
     // クリックイベントの設定
     viewer.querySelectorAll(".time").forEach(el => {
@@ -188,11 +229,11 @@ async function showInViewer(result, keywords) {
     
     viewer.querySelector("#closePlayer").addEventListener("click", () => {
       const popup = viewer.querySelector("#popupPlayer");
-      const playerContainer = viewer.querySelector("#playerContainer");
       popup.classList.add("hidden");
-      playerContainer.innerHTML = "";
+      viewer.querySelector("#playerContainer").innerHTML = "";
     });
     
+    // 該当箇所へジャンプ
     setTimeout(() => {
       const firstHighlight = viewer.querySelector(".highlight");
       if (firstHighlight) {
