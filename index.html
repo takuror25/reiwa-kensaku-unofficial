@@ -54,7 +54,7 @@
 <div id="viewer"></div>
 
 <script src="data/files.js?v=3"></script>
-  
+
 <script>
 document.getElementById("search").addEventListener("input", async (e) => {
   const query = e.target.value.trim();
@@ -83,7 +83,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
             title: f.title,
             url: f.url,
             video: f.video,
-            fragment: paragraphText, // 段落全体のテキストを保存
+            fragment: paragraphText,
             matchIndex: index,
           });
         }
@@ -107,30 +107,25 @@ document.getElementById("search").addEventListener("input", async (e) => {
   `;
   resultsDiv.appendChild(note);
 
-  // ★★★ここが最終修正ポイント！★★★
   results.forEach(r => {
     const fragmentText = r.fragment;
     let displayFragment = '';
-
-    // 最初のキーワードの位置を探す
-    const firstKeyword = keywords[0];
+    const firstKeyword = keywords[0] || '';
     const keywordIndex = fragmentText.toLowerCase().indexOf(firstKeyword.toLowerCase());
 
     if (keywordIndex !== -1) {
-      // キーワードを中心に前80文字、後80文字を切り出す
       const start = Math.max(0, keywordIndex - 80);
       const end = Math.min(fragmentText.length, keywordIndex + firstKeyword.length + 80);
       displayFragment = fragmentText.substring(start, end);
       if (start > 0) displayFragment = "..." + displayFragment;
       if (end < fragmentText.length) displayFragment = displayFragment + "...";
     } else {
-      // 万が一見つからなかった場合は、先頭から切り出す（保険）
       displayFragment = fragmentText.length > 160 ? `${fragmentText.substring(0, 160)}...` : fragmentText;
     }
 
     let highlighted = displayFragment;
     for (const k of keywords) {
-      const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escaped = k.replace(/[.*+?^${}()|[\]\℣/g, '\\$&');
       highlighted = highlighted.replace(new RegExp(escaped, "gi"), `<span class="highlight">${k}</span>`);
     }
 
@@ -155,41 +150,90 @@ async function showInViewer(result, keywords) {
     const doc = parser.parseFromString(text, "text/html");
     const contentBody = doc.body;
 
+    // ★★★ここからが、新しい超一流の職人の仕事です★★★
+
+    // 第1工程：最初に、最も繊細なタイムリンク化を完璧に行う
+    const walker = document.createTreeWalker(contentBody, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    while(walker.nextNode()) textNodes.push(walker.currentNode);
+
+    textNodes.forEach(node => {
+        const timeRegex = /(\d{2}:\d{2}:\d{2})/g;
+        if (!timeRegex.test(node.textContent)) return;
+
+        const fragment = document.createDocumentFragment();
+        const parts = node.textContent.split(timeRegex);
+        
+        parts.forEach((part, index) => {
+            if (index % 2 === 1) { // 奇数番目がタイムスタンプ
+                const span = document.createElement('span');
+                span.className = 'time';
+                span.dataset.time = part;
+                span.textContent = part;
+                fragment.appendChild(span);
+            } else if (part) {
+                fragment.appendChild(document.createTextNode(part));
+            }
+        });
+        node.parentNode.replaceChild(fragment, node);
+    });
+
+    // 第2工程：次に、キーワードのハイライトを行う
     const allParagraphs = contentBody.querySelectorAll('p, span');
     const targetParagraph = allParagraphs[result.matchIndex];
 
     if (targetParagraph) {
-        targetParagraph.id = 'jump-target';
+        targetParagraph.id = 'jump-target'; // ジャンプ用の目印を付ける
     }
 
-    let processedHtml = contentBody.innerHTML;
-    const timeRegex = /(\d{2}:\d{2}:\d{2})(?![^<]*>)/g;
-    processedHtml = processedHtml.replace(timeRegex, (match) => {
-      return `<span class="time" data-time="${match}">${match}</span>`;
-    });
-    
-    // ハイライト処理をより安全な方法に変更
-    const tempContainer = document.createElement('div');
-    tempContainer.innerHTML = processedHtml;
-    tempContainer.querySelectorAll('p, span').forEach(el => {
-        if (keywords.every(k => el.textContent.toLowerCase().includes(k.toLowerCase()))) {
-            const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
-            el.innerHTML = el.innerHTML.replace(keywordsRegex, (match, p1) => {
-                // 既に別のタグに囲まれていない部分だけをハイライトする（簡易的なチェック）
-                if (match.includes('<') || match.includes('>')) return match;
-                return `<span class="highlight">${p1}</span>`;
+    allParagraphs.forEach(p => {
+        if (keywords.every(k => p.textContent.toLowerCase().includes(k.toLowerCase()))) {
+            const keywordsRegexStr = `(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
+            const keywordsRegex = new RegExp(keywordsRegexStr, 'gi');
+            
+            const textWalker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+            const nodesToProcess = [];
+            while(textWalker.nextNode()) {
+                // タイムリンクの中の文字はハイライトしない
+                if (!textWalker.currentNode.parentElement.closest('.time')) {
+                    nodesToProcess.push(textWalker.currentNode);
+                }
+            }
+
+            nodesToProcess.forEach(node => {
+                const parts = node.textContent.split(keywordsRegex);
+                if (parts.length <= 1) return;
+
+                const fragment = document.createDocumentFragment();
+                const matches = [...node.textContent.matchAll(keywordsRegex)];
+                
+                parts.forEach((part, index) => {
+                    if (part) fragment.appendChild(document.createTextNode(part));
+                    if (index < matches.length) {
+                        const span = document.createElement('span');
+                        span.className = 'highlight';
+                        span.textContent = matches[index][0];
+                        fragment.appendChild(span);
+                    }
+                });
+                node.parentNode.replaceChild(fragment, node);
             });
         }
     });
 
+    // --- 飾り付け完了 ---
+
     viewer.innerHTML = `
       <h2>${result.title}</h2>
-      <div class="talk-text">${tempContainer.innerHTML}</div>
       <div id="popupPlayer" class="hidden">
         <button id="closePlayer">×</button>
         <div id="playerContainer"></div>
       </div>
     `;
+    const talkTextDiv = document.createElement('div');
+    talkTextDiv.className = 'talk-text';
+    talkTextDiv.append(...contentBody.childNodes);
+    viewer.appendChild(talkTextDiv);
 
     viewer.querySelectorAll(".time").forEach(el => {
       el.addEventListener("click", () => {
@@ -215,16 +259,12 @@ async function showInViewer(result, keywords) {
     
     setTimeout(() => {
       const targetElement = viewer.querySelector(`#jump-target`);
-      
       if (targetElement) {
         targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        
         const firstTimeLink = targetElement.querySelector('.time');
         if (firstTimeLink) {
             firstTimeLink.click();
         }
-      } else if (viewer.querySelector(".highlight")) {
-        viewer.querySelector(".highlight").scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }, 200);
 
