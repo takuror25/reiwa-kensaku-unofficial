@@ -8,7 +8,7 @@ const files = [
  {
     title: "2025-09-07 北海道・北見市 山本太郎とおしゃべり会",
     url: "talks/2025-09-07-kitami.html",
-    video: "https://www.youtube.com/watch?v=QJhfxRkT4Bc
+    video: "https://www.youtube.com/watch?v=QJhfxRkT4Bc"
   },
 
  
