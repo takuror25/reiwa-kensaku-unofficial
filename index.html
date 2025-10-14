@@ -75,19 +75,16 @@ document.getElementById("search").addEventListener("input", async (e) => {
       const parser = new DOMParser();
       const doc = parser.parseFromString(text, "text/html");
 
-      // ★★★ここが最重要修正点！★★★
-      // 文章が実際に書かれている <span> タグだけを対象にする
       const contentSpans = doc.body.querySelectorAll('span');
       contentSpans.forEach((span, index) => {
         const spanText = span.textContent;
-        // spanタグの中に、すべてのキーワードが含まれているかチェック
         if (keywords.every(k => spanText.toLowerCase().includes(k.toLowerCase()))) {
           results.push({
             title: f.title,
             url: f.url,
             video: f.video,
             fragment: spanText,
-            matchIndex: index, // spanタグの正しい通し番号を保存
+            matchIndex: index,
           });
         }
       });
@@ -153,6 +150,16 @@ async function showInViewer(result, keywords) {
     const doc = parser.parseFromString(text, "text/html");
     const contentBody = doc.body;
 
+    // ★★★ここからが、新しい正しい手順です★★★
+
+    // 手順1：何よりも先に、まっさらな地図で目的の家（span）を探し、旗を立てる
+    const allSpans = contentBody.querySelectorAll('span');
+    const targetSpan = allSpans[result.matchIndex];
+    if (targetSpan) {
+        targetSpan.id = 'jump-target';
+    }
+
+    // 手順2：旗を立てた後で、家を増やす作業（タイムリンク化）を行う
     const walker = document.createTreeWalker(contentBody, NodeFilter.SHOW_TEXT);
     const textNodes = [];
     while(walker.nextNode()) textNodes.push(walker.currentNode);
@@ -178,17 +185,9 @@ async function showInViewer(result, keywords) {
         node.parentNode.replaceChild(fragment, node);
     });
 
-    // ★★★ここも最重要修正点！★★★
-    // <span> タグだけを対象にして、正しい通し番号で目的の場所を特定
-    const allSpans = contentBody.querySelectorAll('span');
-    const targetSpan = allSpans[result.matchIndex];
-
-    if (targetSpan) {
-        targetSpan.id = 'jump-target';
-    }
-    
-    // ハイライト処理は、ジャンプ先を特定した後に行う
-    allSpans.forEach(span => {
+    // 手順3：最後に、ペンキを塗る作業（ハイライト）を行う
+    const spansToHighlight = contentBody.querySelectorAll('span');
+    spansToHighlight.forEach(span => {
         if (keywords.every(k => span.textContent.toLowerCase().includes(k.toLowerCase()))) {
             const keywordsRegexStr = `(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
             const keywordsRegex = new RegExp(keywordsRegexStr, 'gi');
@@ -196,16 +195,15 @@ async function showInViewer(result, keywords) {
             const textWalker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT);
             const nodesToProcess = [];
             while(textWalker.nextNode()) {
-                 if (!textWalker.currentNode.parentElement.closest('.time')) {
+                if (!textWalker.currentNode.parentElement.closest('.time')) {
                     nodesToProcess.push(textWalker.currentNode);
                 }
             }
 
             nodesToProcess.forEach(node => {
-                const parts = node.textContent.split(keywordsRegex);
-                if (parts.length <= 1) return;
-
+                if (!keywordsRegex.test(node.textContent)) return;
                 const fragment = document.createDocumentFragment();
+                const parts = node.textContent.split(keywordsRegex);
                 const matches = [...node.textContent.matchAll(keywordsRegex)];
                 
                 parts.forEach((part, index) => {
@@ -221,6 +219,8 @@ async function showInViewer(result, keywords) {
             });
         }
     });
+
+    // --- 全ての準備完了 ---
 
     viewer.innerHTML = `
       <h2>${result.title}</h2>
@@ -260,9 +260,8 @@ async function showInViewer(result, keywords) {
       const targetElement = viewer.querySelector(`#jump-target`);
       if (targetElement) {
         targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        // ジャンプ先のspanタグ自身、またはその親のpタグに含まれる最初のタイムリンクを探す
         const parentP = targetElement.closest('p');
-        const firstTimeLink = parentP ? parentP.querySelector('.time') : targetElement.querySelector('.time');
+        const firstTimeLink = parentP ? parentP.querySelector('.time') : null;
         
         if (firstTimeLink) {
             firstTimeLink.click();
