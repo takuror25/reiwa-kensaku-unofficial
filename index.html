@@ -191,6 +191,8 @@ async function showInViewer(result, keywords) {
     const doc = parser.parseFromString(text, "text/html");
     const contentBody = doc.body;
 
+    // ★★★ここからが、新しい正しい手順です★★★
+
     // 手順1：何よりも先に、まっさらな地図で目的の家（span）を探し、旗を立てる
     const allSpans = contentBody.querySelectorAll('span');
     const targetSpan = allSpans[result.matchIndex];
@@ -206,8 +208,11 @@ async function showInViewer(result, keywords) {
     textNodes.forEach(node => {
         const timeRegex = /(\d{2}:\d{2}:\d{2})/g;
         if (!timeRegex.test(node.textContent)) return;
+
         const fragment = document.createDocumentFragment();
-        node.textContent.split(timeRegex).forEach((part, index) => {
+        const parts = node.textContent.split(timeRegex);
+        
+        parts.forEach((part, index) => {
             if (index % 2 === 1) {
                 const span = document.createElement('span');
                 span.className = 'time';
@@ -225,7 +230,9 @@ async function showInViewer(result, keywords) {
     const spansToHighlight = contentBody.querySelectorAll('span');
     spansToHighlight.forEach(span => {
         if (keywords.every(k => span.textContent.toLowerCase().includes(k.toLowerCase()))) {
-            const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+            const keywordsRegexStr = `(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
+            const keywordsRegex = new RegExp(keywordsRegexStr, 'gi');
+            
             const textWalker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT);
             const nodesToProcess = [];
             while(textWalker.nextNode()) {
@@ -233,11 +240,13 @@ async function showInViewer(result, keywords) {
                     nodesToProcess.push(textWalker.currentNode);
                 }
             }
+
             nodesToProcess.forEach(node => {
                 if (!keywordsRegex.test(node.textContent)) return;
                 const fragment = document.createDocumentFragment();
                 const parts = node.textContent.split(keywordsRegex);
                 const matches = [...node.textContent.matchAll(keywordsRegex)];
+                
                 parts.forEach((part, index) => {
                     if (part) fragment.appendChild(document.createTextNode(part));
                     if (index < matches.length) {
@@ -251,6 +260,8 @@ async function showInViewer(result, keywords) {
             });
         }
     });
+
+    // --- 全ての準備完了 ---
 
     viewer.innerHTML = `
       <h2>${result.title}</h2>
@@ -322,6 +333,7 @@ async function showInViewer(result, keywords) {
     viewer.addEventListener("mouseup", dragEnd, false);
     viewer.addEventListener("mousemove", drag, false);
     // ★★★ドラッグ機能ここまで★★★
+
 
     viewer.querySelectorAll(".time").forEach(el => {
       el.addEventListener("click", () => {
