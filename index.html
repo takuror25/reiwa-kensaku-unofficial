@@ -72,23 +72,25 @@ document.getElementById("search").addEventListener("input", async (e) => {
       const res = await fetch(f.url);
       if (!res.ok) continue;
       const text = await res.text();
-      const plain = text.replace(/<[^>]*>/g, "");
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, "text/html");
 
-      const contextRegex = new RegExp(`(.{0,80})(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(.{0,80})`, "gi");
-      
-      let match;
-      while ((match = contextRegex.exec(plain)) !== null) {
-        const fragment = match[0];
-        
-        if (keywords.every(k => fragment.toLowerCase().includes(k.toLowerCase()))) {
+      // ★★★新しい方式：先に「付箋」を貼る★★★
+      // PタグやSPANタグをすべて取得
+      const paragraphs = doc.body.querySelectorAll('p, span');
+      paragraphs.forEach((p, index) => {
+        // AND条件：すべてのキーワードが含まれている段落を探す
+        if (keywords.every(k => p.textContent.toLowerCase().includes(k.toLowerCase()))) {
+          // 結果オブジェクトに、固有の「付箋番号」(index)を保存する
           results.push({
             title: f.title,
             url: f.url,
             video: f.video,
-            fragment: fragment,
+            fragment: p.textContent, // 表示用のテキスト
+            matchIndex: index, // ★これが固有の「付箋番号」
           });
         }
-      }
+      });
     } catch (err) {
       console.error("読み込み失敗:", f.url, err);
     }
@@ -108,9 +110,10 @@ document.getElementById("search").addEventListener("input", async (e) => {
   `;
   resultsDiv.appendChild(note);
 
-  // ★★★修正点1: 各結果に固有のIDを振る★★★
-  results.forEach((r, index) => {
-    let highlighted = r.fragment;
+  results.forEach(r => {
+    // 表示する断片テキストを80文字程度に丸める
+    const displayFragment = r.fragment.length > 160 ? `...${r.fragment.substring(0, 160)}...` : r.fragment;
+    let highlighted = displayFragment;
     for (const k of keywords) {
       const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       highlighted = highlighted.replace(new RegExp(escaped, "gi"), `<span class="highlight">${k}</span>`);
@@ -118,14 +121,14 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
     const div = document.createElement("div");
     div.className = "result";
-    div.innerHTML = `<strong>${r.title}</strong><br>...${highlighted}...`;
-    // クリック時に、固有のID(index)と、目印となる文章(fragment)を渡す
-    div.addEventListener("click", () => showInViewer(r, keywords, index));
+    div.innerHTML = `<strong>${r.title}</strong><br>${highlighted}`;
+    // クリック時に、結果オブジェクト(r)をそのまま渡す（rの中に「付箋番号」が入っている）
+    div.addEventListener("click", () => showInViewer(r, keywords));
     resultsDiv.appendChild(div);
   });
 });
 
-async function showInViewer(result, keywords, resultId) {
+async function showInViewer(result, keywords) {
   const viewer = document.getElementById("viewer");
   viewer.innerHTML = "読み込み中...";
   viewer.scrollIntoView({ behavior: "smooth" });
@@ -138,34 +141,29 @@ async function showInViewer(result, keywords, resultId) {
     const doc = parser.parseFromString(text, "text/html");
     const contentBody = doc.body;
 
-    const tempDiv = document.createElement('div');
-    tempDiv.append(...contentBody.childNodes);
-    
-    // ★★★修正点2: ジャンプ先の目印（鍵穴）を取り付ける★★★
-    const cleanTargetFragment = result.fragment.replace(/<[^>]*>/g, '').replace(/\s+/g, '');
-    let foundTarget = false;
+    // ★★★新しい方式：「付箋番号」で目的の場所を特定★★★
+    const allParagraphs = contentBody.querySelectorAll('p, span');
+    // 渡された「付箋番号」(result.matchIndex)を使って、目的の段落を直接特定する
+    const targetParagraph = allParagraphs[result.matchIndex];
 
-    tempDiv.querySelectorAll('p, span').forEach(element => {
-        // すでに目印を付けていたら、何もしない
-        if (foundTarget) return;
+    if (targetParagraph) {
+        // 見つけた段落にだけ、ジャンプ用の目印IDを付ける
+        targetParagraph.id = 'jump-target';
+    }
 
-        const normalizedElementText = element.textContent.replace(/\s+/g, '');
-        if (normalizedElementText.includes(cleanTargetFragment)) {
-            // 目印となる固有IDをHTML要素に直接設定する
-            element.id = `jump-target-${resultId}`;
-            foundTarget = true;
-        }
-
-        if (keywords.every(k => element.innerText.toLowerCase().includes(k.toLowerCase()))) {
-            const keywordsRegex = new RegExp(keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
-            element.innerHTML = element.innerHTML.replace(keywordsRegex, match => `<span class="highlight">${match}</span>`);
-        }
-    });
-
-    let processedHtml = tempDiv.innerHTML;
+    // --- ここから飾り付け処理 ---
+    // タイムリンクを付ける
+    let processedHtml = contentBody.innerHTML;
     const timeRegex = /(\d{2}:\d{2}:\d{2})(?![^<]*>)/g;
     processedHtml = processedHtml.replace(timeRegex, (match) => {
       return `<span class="time" data-time="${match}">${match}</span>`;
+    });
+    // キーワードをハイライトする
+    const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+    processedHtml = processedHtml.replace(keywordsRegex, (match) => {
+        // タイムリンクの中はハイライトしない
+        if (match.includes('<span class="time"')) return match;
+        return `<span class="highlight">${match}</span>`;
     });
     
     viewer.innerHTML = `
@@ -199,9 +197,9 @@ async function showInViewer(result, keywords, resultId) {
       viewer.querySelector("#playerContainer").innerHTML = "";
     });
     
-    // ★★★修正点3: 固有ID（マスターキー）を使ってジャンプと再生★★★
+    // ★★★新しい方式：目印IDにジャンプし、再生する★★★
     setTimeout(() => {
-      const targetElement = viewer.querySelector(`#jump-target-${resultId}`);
+      const targetElement = viewer.querySelector(`#jump-target`);
       
       if (targetElement) {
         targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -210,11 +208,10 @@ async function showInViewer(result, keywords, resultId) {
         if (firstTimeLink) {
             firstTimeLink.click();
         }
-      } else if (viewer.querySelectorAll(".highlight").length > 0) {
-        // 保険としての処理
-        viewer.querySelectorAll(".highlight")[0].scrollIntoView({ behavior: "smooth", block: "center" });
+      } else if (viewer.querySelector(".highlight")) {
+        viewer.querySelector(".highlight").scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    }, 200); // 描画処理の完了を待つため、少しだけ待機時間を延ばします
+    }, 200);
 
     if (!document.getElementById('popup-player-style')) {
         const style = document.createElement("style");
