@@ -96,7 +96,6 @@
 <script src="data/files.js?v=3"></script>
 
 
-
 <script>
 // 「ページの先頭に戻るボタン」を作成してページに追加する
 const backToTopButton = document.createElement('button');
@@ -341,8 +340,10 @@ async function showInViewer(result, keywords) {
       const targetElement = viewer.querySelector(`#jump-target`);
       if (targetElement) {
         targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        const parentP = targetElement.closest('p');
-        const firstTimeLink = parentP ? parentP.querySelector('.time') : null;
+        // ★★★ここが最終修正ポイント！★★★
+        // 床板(p)ではなく、俳優本人(span)のマイクを探す
+        const firstTimeLink = targetElement.querySelector('.time');
+        
         if (firstTimeLink) {
             firstTimeLink.click();
         }
@@ -377,7 +378,6 @@ async function showInViewer(result, keywords) {
             #playerContainer { position: relative; width: 100%; padding-top: 56.25%; }
             #playerContainer iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
             
-            /* ★★★ここが整理整頓のための修正★★★ */
             #closePlayer {
               background: #e53935; color: white; border: none;
               font-size: 1.2em; font-weight: bold;
@@ -395,6 +395,11 @@ async function showInViewer(result, keywords) {
   }
 }
 </script>
+  
+</body>
+</html>
+
+
   
 </body>
 </html>
