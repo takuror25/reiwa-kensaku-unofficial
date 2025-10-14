@@ -75,7 +75,6 @@ document.getElementById("search").addEventListener("input", async (e) => {
       const parser = new DOMParser();
       const doc = parser.parseFromString(text, "text/html");
 
-      // ★★★ここが最重要修正点！★★★
       // 文章が実際に書かれている <span> タグだけを対象にする
       const contentSpans = doc.body.querySelectorAll('span');
       contentSpans.forEach((span, index) => {
@@ -128,6 +127,7 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
     let highlighted = displayFragment;
     for (const k of keywords) {
+      // ★★★インクの染みを消しました！★★★
       const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       highlighted = highlighted.replace(new RegExp(escaped, "gi"), `<span class="highlight">${k}</span>`);
     }
@@ -178,12 +178,111 @@ async function showInViewer(result, keywords) {
         node.parentNode.replaceChild(fragment, node);
     });
 
-    // ★★★ここも最重要修正点！★★★
-    // <span> タグだけを対象にして、正しい通し番号で目的の場所を特定
     const allSpans = contentBody.querySelectorAll('span');
     const targetSpan = allSpans[result.matchIndex];
 
     if (targetSpan) {
+        targetSpan.id = 'jump-target';
+    }
+    
+    allSpans.forEach(span => {
+        if (!span.classList.contains('time') && keywords.every(k => span.textContent.toLowerCase().includes(k.toLowerCase()))) {
+            const keywordsRegexStr = `(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
+            const keywordsRegex = new RegExp(keywordsRegexStr, 'gi');
+            
+            const textWalker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT);
+            const nodesToProcess = [];
+            while(textWalker.nextNode()) {
+                 if (!textWalker.currentNode.parentElement.closest('.time')) {
+                    nodesToProcess.push(textWalker.currentNode);
+                }
+            }
+
+            nodesToProcess.forEach(node => {
+                const parts = node.textContent.split(keywordsRegex);
+                if (parts.length <= 1) return;
+
+                const fragment = document.createDocumentFragment();
+                const matches = [...node.textContent.matchAll(keywordsRegex)];
+                
+                parts.forEach((part, index) => {
+                    if (part) fragment.appendChild(document.createTextNode(part));
+                    if (index < matches.length) {
+                        const highlightSpan = document.createElement('span');
+                        highlightSpan.className = 'highlight';
+                        highlightSpan.textContent = matches[index][0];
+                        fragment.appendChild(highlightSpan);
+                    }
+                });
+                node.parentNode.replaceChild(fragment, node);
+            });
+        }
+    });
+
+    viewer.innerHTML = `
+      <h2>${result.title}</h2>
+      <div id="popupPlayer" class="hidden">
+        <button id="closePlayer">×</button>
+        <div id="playerContainer"></div>
+      </div>
+    `;
+    const talkTextDiv = document.createElement('div');
+    talkTextDiv.className = 'talk-text';
+    talkTextDiv.append(...contentBody.childNodes);
+    viewer.appendChild(talkTextDiv);
+
+    viewer.querySelectorAll(".time").forEach(el => {
+      el.addEventListener("click", () => {
+        const time = el.dataset.time;
+        if (!time) return;
+        const [h, m, s] = time.split(":").map(Number);
+        const seconds = h * 3600 + m * 60 + s;
+        const videoId = result.video.split("v=")[1]?.split("&")[0] || result.video.split("/").pop();
+        const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
+        
+        const popup = viewer.querySelector("#popupPlayer");
+        const playerContainer = viewer.querySelector("#playerContainer");
+        playerContainer.innerHTML = `<iframe src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+        popup.classList.remove("hidden");
+      });
+    });
+    
+    viewer.querySelector("#closePlayer").addEventListener("click", () => {
+      const popup = viewer.querySelector("#popupPlayer");
+      popup.classList.add("hidden");
+      viewer.querySelector("#playerContainer").innerHTML = "";
+    });
+    
+    setTimeout(() => {
+      const targetElement = viewer.querySelector(`#jump-target`);
+      if (targetElement) {
+        targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        const firstTimeLink = targetElement.closest('p').querySelector('.time');
+        if (firstTimeLink) {
+            firstTimeLink.click();
+        }
+      }
+    }, 200);
+
+    if (!document.getElementById('popup-player-style')) {
+        const style = document.createElement("style");
+        style.id = 'popup-player-style';
+        style.textContent = `
+            #popupPlayer { position: fixed; bottom: 10px; right: 10px; width: 50vw; max-width: 560px; background: #000; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 9999; }
+            #playerContainer { position: relative; width: 100%; padding-top: 56.25%; }
+            #playerContainer iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+            #closePlayer { background: #e53935; color: white; border: none; font-size: 1.5em; cursor: pointer; position: absolute; top: -15px; right: -15px; width: 30px; height: 30px; border-radius: 50%; z-index: 3; display: flex; align-items_center; justify-content: center; line-height: 1; }
+            @media (max-width: 768px) { #popupPlayer { width: 90vw; left: 5vw; right: 5vw; } }
+        `;
+        document.head.appendChild(style);
+    }
+
+  } catch (err) {
+    viewer.innerHTML = "コンテンツの読み込みに失敗しました。";
+    console.error("showInViewerでエラー:", err);
+  }
+}
+</script>
 
 </body>
 </html>
