@@ -104,11 +104,12 @@ document.getElementById("search").addEventListener("input", async (e) => {
   note.innerHTML = `
     <strong>結果の見方：</strong><br>
     検索したワードを含む部分を一覧で表示します。<br>
-    一覧の中からどれかをクリックすると、全文が開き、該当箇所にスクロールします。そこからタイムをクリックすると該当部分のYouTube動画が再生されます。
+    一覧の中からどれかをクリックすると、全文が開き、該当箇所にスクロールし、動画が自動再生されます。
   `;
   resultsDiv.appendChild(note);
 
-  for (const r of results) {
+  // ★★★修正点1: 各結果に固有のIDを振る★★★
+  results.forEach((r, index) => {
     let highlighted = r.fragment;
     for (const k of keywords) {
       const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -117,13 +118,14 @@ document.getElementById("search").addEventListener("input", async (e) => {
 
     const div = document.createElement("div");
     div.className = "result";
-    div.innerHTML = `<strong>${r.title}</strong><br>...${highlighted}......`;
-    div.addEventListener("click", () => showInViewer(r, keywords));
+    div.innerHTML = `<strong>${r.title}</strong><br>...${highlighted}...`;
+    // クリック時に、固有のID(index)と、目印となる文章(fragment)を渡す
+    div.addEventListener("click", () => showInViewer(r, keywords, index));
     resultsDiv.appendChild(div);
-  }
+  });
 });
 
-async function showInViewer(result, keywords) {
+async function showInViewer(result, keywords, resultId) {
   const viewer = document.getElementById("viewer");
   viewer.innerHTML = "読み込み中...";
   viewer.scrollIntoView({ behavior: "smooth" });
@@ -138,11 +140,24 @@ async function showInViewer(result, keywords) {
 
     const tempDiv = document.createElement('div');
     tempDiv.append(...contentBody.childNodes);
-
-    const keywordsRegex = new RegExp(keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
     
+    // ★★★修正点2: ジャンプ先の目印（鍵穴）を取り付ける★★★
+    const cleanTargetFragment = result.fragment.replace(/<[^>]*>/g, '').replace(/\s+/g, '');
+    let foundTarget = false;
+
     tempDiv.querySelectorAll('p, span').forEach(element => {
+        // すでに目印を付けていたら、何もしない
+        if (foundTarget) return;
+
+        const normalizedElementText = element.textContent.replace(/\s+/g, '');
+        if (normalizedElementText.includes(cleanTargetFragment)) {
+            // 目印となる固有IDをHTML要素に直接設定する
+            element.id = `jump-target-${resultId}`;
+            foundTarget = true;
+        }
+
         if (keywords.every(k => element.innerText.toLowerCase().includes(k.toLowerCase()))) {
+            const keywordsRegex = new RegExp(keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
             element.innerHTML = element.innerHTML.replace(keywordsRegex, match => `<span class="highlight">${match}</span>`);
         }
     });
@@ -184,43 +199,22 @@ async function showInViewer(result, keywords) {
       viewer.querySelector("#playerContainer").innerHTML = "";
     });
     
-    // ★★★ここが最終修正ポイント！★★★
+    // ★★★修正点3: 固有ID（マスターキー）を使ってジャンプと再生★★★
     setTimeout(() => {
-      // 探すための「目印」となる文章から、改行やスペースを全部取り除いておく
-      const cleanTargetFragment = result.fragment.replace(/<[^>]*>/g, '');
-      const normalizedTargetFragment = cleanTargetFragment.replace(/\s+/g, '');
+      const targetElement = viewer.querySelector(`#jump-target-${resultId}`);
       
-      let targetHighlightElement = null;
-      const allHighlights = viewer.querySelectorAll(".highlight");
-
-      for (const h of allHighlights) {
-        // 全文の中の文章からも、改行やスペースを全部取り除いて比較する
-        const parentContext = h.parentElement.textContent;
-        const normalizedParentContext = parentContext.replace(/\s+/g, '');
-
-        // スペースなどを無視した状態で、文章が含まれているかチェック
-        if (normalizedParentContext.includes(normalizedTargetFragment)) {
-          targetHighlightElement = h;
-          break;
-        }
-      }
-
-      if (targetHighlightElement) {
-        targetHighlightElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (targetElement) {
+        targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
         
-        const paragraphOrSpan = targetHighlightElement.closest('p, span');
-        if (paragraphOrSpan) {
-            const firstTimeLinkInParagraph = paragraphOrSpan.querySelector('.time');
-            if (firstTimeLinkInParagraph) {
-                // 見つけたタイムリンクのクリック命令を出す
-                firstTimeLinkInParagraph.click();
-            }
+        const firstTimeLink = targetElement.querySelector('.time');
+        if (firstTimeLink) {
+            firstTimeLink.click();
         }
-      } 
-      else if (allHighlights.length > 0) {
-        allHighlights[0].scrollIntoView({ behavior: "smooth", block: "center" });
+      } else if (viewer.querySelectorAll(".highlight").length > 0) {
+        // 保険としての処理
+        viewer.querySelectorAll(".highlight")[0].scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    }, 150); // 少しだけ待機時間を延ばして、処理を安定させます
+    }, 200); // 描画処理の完了を待つため、少しだけ待機時間を延ばします
 
     if (!document.getElementById('popup-player-style')) {
         const style = document.createElement("style");
