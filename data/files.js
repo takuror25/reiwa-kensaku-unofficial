@@ -7,7 +7,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-09-09 北海道・根室市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-09-nemuro.html",
+    video: "https://www.youtube.com/watch?v=Ud2wlV4L1Ok"
+  },
   
  {
     title: "2025-09-08 北海道・釧路市 山本太郎とおしゃべり会",
