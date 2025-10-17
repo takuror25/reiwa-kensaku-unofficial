@@ -11,7 +11,7 @@ const files = [
   
  {
     title: "2025-09-08 北海道・釧路市 山本太郎とおしゃべり会",
-    url: "talks/2025-09-08-kushiro.htnl",
+    url: "talks/2025-09-08-kushiro.html",
     video: "https://www.youtube.com/watch?v=kosuRlDxEjQ"
   },
 
