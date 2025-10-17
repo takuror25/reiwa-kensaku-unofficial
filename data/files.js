@@ -5,7 +5,13 @@
 const files = [
 
 
+    
 
+{
+    title: "2025-09-10 北海道・帯広市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-10-obihiro.html",
+    video: "https://www.youtube.com/watch?v=lNw9HWV2E-Y"
+  },
 
 {
     title: "2025-09-09 北海道・根室市 山本太郎とおしゃべり会",
