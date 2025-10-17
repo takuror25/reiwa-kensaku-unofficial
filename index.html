@@ -172,23 +172,16 @@ document.getElementById("search").addEventListener("input", async (e) => {
   results.forEach(r => {
     const fragmentText = r.fragment;
     let displayFragment = '';
-    
-    // ★★★ここが今回の修正点！★★★
-    // 複数のキーワードのどれかが最初に出てくる場所を探す
-    const keywordsRegex = new RegExp(keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i');
-    const match = fragmentText.match(keywordsRegex);
-    const keywordIndex = match ? match.index : -1;
+    const firstKeyword = keywords[0] || '';
+    const keywordIndex = fragmentText.toLowerCase().indexOf(firstKeyword.toLowerCase());
 
     if (keywordIndex !== -1) {
-      const keywordLength = match[0].length;
-      // キーワードを中心に前80文字、後80文字を切り出す
       const start = Math.max(0, keywordIndex - 80);
-      const end = Math.min(fragmentText.length, keywordIndex + keywordLength + 80);
+      const end = Math.min(fragmentText.length, keywordIndex + firstKeyword.length + 80);
       displayFragment = fragmentText.substring(start, end);
       if (start > 0) displayFragment = "..." + displayFragment;
       if (end < fragmentText.length) displayFragment = displayFragment + "...";
     } else {
-      // 万が一見つからなかった場合は、先頭から切り出す（保険）
       displayFragment = fragmentText.length > 160 ? `${fragmentText.substring(0, 160)}...` : fragmentText;
     }
 
@@ -225,57 +218,34 @@ async function showInViewer(result, keywords) {
         targetSpan.id = 'jump-target';
     }
 
-    const walker = document.createTreeWalker(contentBody, NodeFilter.SHOW_TEXT);
-    const textNodes = [];
-    while(walker.nextNode()) textNodes.push(walker.currentNode);
+    // ★★★ここからが最後の修正です★★★
+    let processedHtml = contentBody.innerHTML;
 
-    textNodes.forEach(node => {
-        const timeRegex = /(\d{2}:\d{2}:\d{2})/g;
-        if (!timeRegex.test(node.textContent)) return;
-        const fragment = document.createDocumentFragment();
-        node.textContent.split(timeRegex).forEach((part, index) => {
-            if (index % 2 === 1) {
-                const span = document.createElement('span');
-                span.className = 'time';
-                span.dataset.time = part;
-                span.textContent = part;
-                fragment.appendChild(span);
-            } else if (part) {
-                fragment.appendChild(document.createTextNode(part));
-            }
-        });
-        node.parentNode.replaceChild(fragment, node);
+    // 手順1：まず、文字列としてタイムリンクを完全に作成する
+    const timeRegex = /(\d{2}:\d{2}:\d{2})(?![^<]*>|[^<>]*<\/span>)/g;
+    processedHtml = processedHtml.replace(timeRegex, (match) => {
+        return `<span class="time" data-time="${match}">${match}</span>`;
     });
 
-    const spansToHighlight = contentBody.querySelectorAll('span');
-    spansToHighlight.forEach(span => {
-        if (keywords.every(k => span.textContent.toLowerCase().includes(k.toLowerCase()))) {
-            const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
-            const textWalker = document.createTreeWalker(span, NodeFilter.SHOW_TEXT);
-            const nodesToProcess = [];
-            while(textWalker.nextNode()) {
-                if (!textWalker.currentNode.parentElement.closest('.time')) {
-                    nodesToProcess.push(textWalker.currentNode);
-                }
-            }
-            nodesToProcess.forEach(node => {
-                if (!keywordsRegex.test(node.textContent)) return;
-                const fragment = document.createDocumentFragment();
-                const parts = node.textContent.split(keywordsRegex);
-                const matches = [...node.textContent.matchAll(keywordsRegex)];
-                parts.forEach((part, index) => {
-                    if (part) fragment.appendChild(document.createTextNode(part));
-                    if (index < matches.length) {
-                        const highlightSpan = document.createElement('span');
-                        highlightSpan.className = 'highlight';
-                        highlightSpan.textContent = matches[index][0];
-                        fragment.appendChild(highlightSpan);
-                    }
-                });
-                node.parentNode.replaceChild(fragment, node);
+    // 手順2：次に、文字列としてキーワードを完全にハイライトする
+    const keywordsRegex = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+    // <p>タグごとに処理を行い、そのpタグ内に全てのキーワードが含まれていればハイライトする
+    processedHtml = processedHtml.replace(/<p(.*?)>(.*?)<\/p>/gs, (match, pAttributes, pContent) => {
+        const plainContent = pContent.replace(/<[^>]*>/g, '');
+        if (keywords.every(k => plainContent.toLowerCase().includes(k.toLowerCase()))) {
+            const highlightedContent = pContent.replace(keywordsRegex, (match) => {
+                // 既に別のタグに囲まれているキーワードはハイライトしない（タイムリンクなど）
+                if (match.includes('<') || match.includes('>')) return match;
+                // キーワード自体をハイライトで囲む
+                const highlightedMatch = `<span class="highlight">${match}</span>`;
+                return highlightedMatch;
             });
+            return `<p${pAttributes}>${highlightedContent}</p>`;
         }
+        return match;
     });
+    // ★★★文字列処理はここまで★★★
+
 
     viewer.innerHTML = `
       <h2>${result.title}</h2>
@@ -287,7 +257,7 @@ async function showInViewer(result, keywords) {
     `;
     const talkTextDiv = document.createElement('div');
     talkTextDiv.className = 'talk-text';
-    talkTextDiv.append(...contentBody.childNodes);
+    talkTextDiv.innerHTML = processedHtml; // 加工済みのHTML文字列をセット
     viewer.appendChild(talkTextDiv);
 
     const popup = viewer.querySelector("#popupPlayer");
@@ -347,7 +317,6 @@ async function showInViewer(result, keywords) {
       if (targetElement) {
         targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
         const firstTimeLink = targetElement.querySelector('.time');
-        
         if (firstTimeLink) {
             firstTimeLink.click();
         }
@@ -399,6 +368,6 @@ async function showInViewer(result, keywords) {
   }
 }
 </script>
-  
+
 </body>
 </html>
