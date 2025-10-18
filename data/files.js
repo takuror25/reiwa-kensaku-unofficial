@@ -7,7 +7,7 @@ const files = [
 
     {
     title: "2025-09-13 愛知県・春日井市 山本太郎とおしゃべり会",
-    url: "talks/2025-2025-09-13-kasugai.html",
+    url: "talks/2025-09-13-kasugai.html",
     video: "https://www.youtube.com/watch?v=3nYucjEysnM"
   },
 
