@@ -5,7 +5,13 @@
 const files = [
 
 
-    {
+　{
+    title: "2025-09-14 岐阜県・多治見市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-14-tajimi.html",
+    video: "https://www.youtube.com/watch?v=8dAIvGkOH-U"
+  },
+
+  {
     title: "2025-09-13 愛知県・春日井市 山本太郎とおしゃべり会",
     url: "talks/2025-09-13-kasugai.html",
     video: "https://www.youtube.com/watch?v=3nYucjEysnM"
