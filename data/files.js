@@ -5,7 +5,11 @@
 const files = [
 
 
-    
+  {
+    title: "2025-09-13 岐阜県・大垣市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-13-oogaki.html",
+    video: "https://www.youtube.com/watch?v=K8E19u803bI"
+  },
 
 {
     title: "2025-09-10 北海道・帯広市 山本太郎とおしゃべり会",
