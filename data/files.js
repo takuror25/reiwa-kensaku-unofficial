@@ -5,7 +5,11 @@
 const files = [
 
 
-
+{
+    title: "2025-09-15 三重県・津市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-15-tsu.html",
+    video: "https://www.youtube.com/watch?v=Ekz8t525c3I"
+  },
     
 {
     title: "2025-09-14 愛知県・一宮市 山本太郎とおしゃべり会",
