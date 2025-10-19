@@ -115,6 +115,7 @@
 </div>
 
 <script src="data/files.js?v=3"></script>
+
 <script>
 // --- グローバル変数と初期設定 ---
 const backToTopButton = document.createElement('button');
@@ -126,37 +127,33 @@ const playerContainer = document.getElementById("playerContainer");
 let active = false;
 let currentX; let currentY; let initialX; let initialY;
 let xOffset = 0; let yOffset = 0;
+let searchTimeout;
 
 // --- 関数定義 ---
 
-// YouTubeプレイヤーを表示・再生する関数
 const playVideoAtTime = (videoId, seconds) => {
   const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}`;
   playerContainer.innerHTML = `<iframe src="${embedUrl}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
   popup.style.visibility = 'visible';
 };
 
-// ドラッグ開始
 const dragStart = (e) => {
   let evt = e.type === 'touchstart' ? e.touches[0] : e;
   initialX = evt.clientX - xOffset;
   initialY = evt.clientY - yOffset;
-  // ドラッグハンドルの要素、またはその子要素(grip)がタッチ/クリックされた場合のみ有効
   if (e.target === dragHandle || dragHandle.contains(e.target)) {
     active = true;
-    dragHandle.style.cursor = 'grabbing'; // カーソル変更
+    dragHandle.style.cursor = 'grabbing';
   }
 };
 
-// ドラッグ終了
 const dragEnd = () => {
-  if (active) { // ドラッグ中だった場合のみ
+  if (active) {
     active = false;
-    dragHandle.style.cursor = 'grab'; // カーソル戻す
+    dragHandle.style.cursor = 'grab';
   }
 };
 
-// ドラッグ中
 const drag = (e) => {
   if (active) {
     e.preventDefault();
@@ -182,108 +179,108 @@ window.addEventListener('scroll', () => {
   backToTopButton.classList.toggle('visible', window.scrollY > 200);
 });
 
-// 検索入力
-document.getElementById("search").addEventListener("input", async (e) => {
+// 検索入力 (デバウンス処理付き)
+document.getElementById("search").addEventListener("input", (e) => {
+  clearTimeout(searchTimeout); 
+  
   const query = e.target.value.trim();
   const resultsDiv = document.getElementById("results");
-  resultsDiv.innerHTML = "";
-  popup.style.visibility = 'hidden'; // 検索し直したらプレイヤーを隠す
-  playerContainer.innerHTML = "";
 
-  if (!query) return;
+  searchTimeout = setTimeout(async () => { 
+    resultsDiv.innerHTML = "";
+    popup.style.visibility = 'hidden'; 
+    playerContainer.innerHTML = "";
 
-  const keywords = query.split(/\s+/).filter(k => k);
-  if (keywords.length === 0) return;
-  
-  const results = [];
+    if (!query) return;
 
-  for (const f of files) {
-    try {
-      const res = await fetch(f.url);
-      if (!res.ok) continue;
-      const text = await res.text();
-
-      // <p>タグを抽出して配列にする
-      const paragraphs = text.split(/(<p>.*?<\/p>)/s).filter(p => p.startsWith('<p>'));
-      
-      paragraphs.forEach((pHTML, index) => {
-        const plainText = pHTML.replace(/<[^>]*>/g, "");
-        // AND検索: すべてのキーワードを含むか
-        if (keywords.every(k => plainText.toLowerCase().includes(k.toLowerCase()))) {
-          // 最初のタイムスタンプを抽出 (HH:MM:SS形式)
-          const timeMatch = plainText.match(/^(\d{2}:\d{2}:\d{2})/);
-          if (timeMatch) {
-            results.push({
-              title: f.title,
-              video: f.video,
-              pHTML: pHTML, // 表示とハイライト用にHTMLを保持
-              timestamp: timeMatch[1], // 時間文字列 HH:MM:SS
-            });
-          }
-        }
-      });
-    } catch (err) {
-      console.error("読み込み失敗:", f.url, err);
-    }
-  }
-
-  if (results.length === 0) {
-    resultsDiv.innerHTML = "<p>一致する結果はありません。</p>";
-    return;
-  }
-
-  const note = document.createElement("div");
-  note.id = "note";
-  note.innerHTML = `
-    <strong>結果の見方：</strong><br>
-    検索したワードを含む部分を一覧で表示します。<br>
-    一覧の中からどれかをクリックすると該当箇所の動画を再生できます。<br>
-    ※AIを使用して文字化しているため、文章は誤字や不正確な点が発生します。<br>
-    ※正確な情報源としてはYouTubeをご確認ください。<br>
-    ※動画に広告が表示されますがYouTube側の仕様であり、収益目的ではありません。
-  `;
-  resultsDiv.appendChild(note);
-
-  results.forEach(r => {
-    let highlightedHTML = r.pHTML;
-    // 結果表示用にキーワードをハイライト
-    for (const k of keywords) {
-      const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // (?![^<]*>) を使ってタグの中身は置換しないようにする
-      highlightedHTML = highlightedHTML.replace(new RegExp(`(${escaped})(?![^<]*>)`, "gi"), `<span class="highlight">$1</span>`);
-    }
-
-    const div = document.createElement("div");
-    div.className = "result";
-    // ハイライトされたHTMLを表示
-    div.innerHTML = `<strong>${r.title}</strong><br>${highlightedHTML}`;
+    const keywords = query.split(/\s+/).filter(k => k);
+    if (keywords.length === 0) return;
     
-    // クリックしたら動画再生関数を呼び出す
-    div.addEventListener("click", () => {
-        const videoId = r.video.split("v=")[1]?.split("&")[0] || r.video.split("/").pop();
-        const [h, m, s] = r.timestamp.split(":").map(Number);
-        const seconds = h * 3600 + m * 60 + s;
-        playVideoAtTime(videoId, seconds);
+    const results = [];
+
+    for (const f of files) {
+      try {
+        const res = await fetch(f.url);
+        if (!res.ok) continue;
+        const text = await res.text();
+
+        const paragraphs = text.split(/(<p>.*?<\/p>)/s).filter(p => p.startsWith('<p>'));
+        
+        paragraphs.forEach((pHTML, index) => {
+          const plainText = pHTML.replace(/<[^>]*>/g, "");
+          if (keywords.every(k => plainText.toLowerCase().includes(k.toLowerCase()))) {
+            const timeMatch = plainText.match(/^\s*(\d{2}:\d{2}:\d{2})/); 
+            if (timeMatch) {
+              results.push({
+                title: f.title,
+                video: f.video,
+                pHTML: pHTML, 
+                timestamp: timeMatch[1], 
+              });
+            }
+          }
+        });
+      } catch (err) {
+        console.error("読み込み失敗:", f.url, err);
+      }
+    }
+
+    if (results.length === 0) {
+      resultsDiv.innerHTML = "<p>一致する結果はありません。</p>";
+      return;
+    }
+
+    const note = document.createElement("div");
+    note.id = "note";
+    note.innerHTML = `
+      <strong>結果の見方：</strong><br>
+      検索したワードを含む部分を一覧で表示します。<br>
+      一覧の中からどれかをクリックすると該当箇所の動画を再生できます。<br>
+      ※AIを使用して文字化しているため、文章は誤字や不正確な点が発生します。<br>
+      ※正確な情報源としてはYouTubeをご確認ください。<br>
+      ※動画に広告が表示されますがYouTube側の仕様であり、収益目的ではありません。
+    `;
+    resultsDiv.appendChild(note);
+
+    results.forEach(r => {
+      let highlightedHTML = r.pHTML;
+      for (const k of keywords) {
+        const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        highlightedHTML = highlightedHTML.replace(new RegExp(`(${escaped})(?![^<]*>)`, "gi"), `<span class="highlight">$1</span>`);
+      }
+
+      const div = document.createElement("div");
+      div.className = "result";
+      
+      // ★★★ここが今回の修正点！★★★
+      // タイトルの横に再生ボタンアイコンを追加
+      div.innerHTML = `<strong>${r.title} <span style="color:#e4007e; font-size: 1.2em;">▶️</span></strong><br>${highlightedHTML}`;
+      // ★★★修正点ここまで★★★
+      
+      div.addEventListener("click", () => {
+          const videoId = r.video.split("v=")[1]?.split("&")[0] || r.video.split("/").pop();
+          const [h, m, s] = r.timestamp.split(":").map(Number);
+          const seconds = h * 3600 + m * 60 + s;
+          playVideoAtTime(videoId, seconds);
+      });
+      resultsDiv.appendChild(div);
     });
-    resultsDiv.appendChild(div);
-  });
+
+  }, 1000); // 1秒待つ
 });
 
-// ドラッグイベントリスナー (ページ読み込み時に一度だけ設定)
+// ドラッグイベントリスナー
 dragHandle.addEventListener("touchstart", dragStart, { passive: false });
-document.addEventListener("touchend", dragEnd, { passive: false }); // document全体で離したのを検知
-document.addEventListener("touchmove", drag, { passive: false }); // document全体で動かすのを検知
+document.addEventListener("touchend", dragEnd, { passive: false });
+document.addEventListener("touchmove", drag, { passive: false });
 dragHandle.addEventListener("mousedown", dragStart, { passive: false });
 document.addEventListener("mouseup", dragEnd, { passive: false });
 document.addEventListener("mousemove", drag, { passive: false });
 
-// 閉じるボタン (ページ読み込み時に一度だけ設定)
+// 閉じるボタン
 closePlayerBtn.addEventListener("click", () => {
   popup.style.visibility = 'hidden';
   playerContainer.innerHTML = "";
-  // ドラッグ位置をリセット (必要なら)
-  // xOffset = 0; yOffset = 0;
-  // popup.style.transform = `translate3d(0px, 0px, 0)`; 
 });
 
 </script>
