@@ -4,7 +4,11 @@
 
 const files = [
 
-
+{
+    title: "2025-10-18 愛知県・清須市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-18-kiyosu.html",
+    video: "https://www.youtube.com/watch?v=xefc4ua6Nq0"
+  },
 
 {
     title: "2025-10-18 愛知県・名古屋市 山本太郎とおしゃべり会",
