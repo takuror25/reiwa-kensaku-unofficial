@@ -36,7 +36,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-09-16 静岡県・沼津市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-16-numazu.html",
+    video: "https://www.youtube.com/watch?v=eCMzsiimP8U"
+  },
 
 {
     title: "2025-09-15 三重県・いなべ市 山本太郎とおしゃべり会",
