@@ -96,15 +96,43 @@
   z-index: 10000; /* 最前面 */
   display: flex; align-items: center; justify-content: center;
  }
+
+/* --- 新しいタイトル部分のスタイル --- */
+.title-container {
+  text-align: center; /* 全体を中央揃え */
+  margin-bottom: 2em; /* タイトル下の余白 */
+}
+
+.main-title {
+  color: #e4007e; /* れいわピンク */
+  font-size: 2.8em; /* 文字を大きく */
+  font-weight: bold; /* 少し太字に */
+  font-family: sans-serif; /* シンプルなゴシック体 */
+  margin-bottom: 0.1em; /* サブタイトルとの間隔を詰める */
+  letter-spacing: 0.05em; /* 文字間隔を少し広げてポップに */
+}
+
+.subtitle {
+  font-size: 1em; /* 標準的な文字サイズ */
+  color: #666; /* 少し薄めのグレー */
+  margin-top: 0; /* メインタイトルとの間隔を詰める */
+}
+
+  
 </style>
 </head>
 
 <body>
 
-<h1>れいわ新選組街宣・おしゃべり会検索（非公式）</h1>
+<div class="title-container">
+  <h1 class="main-title">れ・さーち</h1>
+  <p class="subtitle">れいわ新選組街宣・おしゃべり会検索ツール（非公式）</p>
+</div>
+
 <p>れいわ新選組の街宣・おしゃべり会の中からキーワードで検索するツールです。<br>
   ※AIを使用して要約しているため不正確な場合があります。<br>
   ※正確な情報源としては、れいわ新選組の公式YouTubeをご確認ください。 </p>
+
 <input type="text" id="search" placeholder="キーワードを入力">
 <div id="results"></div>
 
