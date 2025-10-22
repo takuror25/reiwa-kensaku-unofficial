@@ -5,11 +5,7 @@
 const files = [
 
 
-{
-    title: "2025-09-21 滋賀県・甲賀市 山本太郎とおしゃべり会",
-    url: "talks/2025-09-21-kouga.html",
-    video: "https://www.youtube.com/watch?v=2ocjejgaI8o"
-  },
+
 
 {
     title: "2025-10-19 静岡県・藤沢市 山本太郎とおしゃべり会",
@@ -39,6 +35,24 @@ const files = [
 
 
 
+
+
+
+
+
+    
+
+{
+    title: "2025-09-21 大阪府・富田林市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-21-tondabayashi.html",
+    video: "https://www.youtube.com/watch?v=SS9Z_LvkmYI"
+  },
+
+{
+    title: "2025-09-21 滋賀県・甲賀市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-21-kouga.html",
+    video: "https://www.youtube.com/watch?v=2ocjejgaI8o"
+  },
 
 {
     title: "2025-09-16 静岡県・沼津市 山本太郎とおしゃべり会",
