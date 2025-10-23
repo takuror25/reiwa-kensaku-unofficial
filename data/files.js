@@ -34,6 +34,16 @@ const files = [
 
 
 
+
+
+
+
+{
+    title: "2025-09-27 富山県・高岡市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-27-takaoka.html",
+    video: "https://www.youtube.com/watch?v=MTLfbzZbl1U"
+  },
+
 {
     title: "2025-09-24 京都府・亀岡市 山本太郎とおしゃべり会",
     url: "talks/2025-09-24-kameoka.html",
