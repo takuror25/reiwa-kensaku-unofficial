@@ -38,7 +38,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-09-23 奈良県・橿原市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-23-kashihara.html",
+    video: "https://www.youtube.com/watch?v=wfyw5hd8Wz0"
+  },
 
 {
     title: "2025-09-22 和歌山県・田辺市 山本太郎とおしゃべり会",
