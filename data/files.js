@@ -34,7 +34,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-09-24 京都府・亀岡市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-24-kameoka.html",
+    video: "https://www.youtube.com/watch?v=tWGv7gNJ3ds"
+  },
 
 {
     title: "2025-09-23 兵庫県・三田市 山本太郎とおしゃべり会",
