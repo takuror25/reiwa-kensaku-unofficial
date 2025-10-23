@@ -177,7 +177,6 @@
 
 <script src="data/files.js?v=3"></script>
 
-
 <script>
 // --- グローバル変数と初期設定 ---
 const backToTopButton = document.createElement('button');
@@ -190,6 +189,7 @@ let active = false;
 let currentX; let currentY; let initialX; let initialY;
 let xOffset = 0; let yOffset = 0;
 let searchTimeout;
+let abortController = null; // ★★★ 中止ボタン用の変数を追加 ★★★
 
 // --- 関数定義 ---
 
@@ -241,7 +241,7 @@ window.addEventListener('scroll', () => {
   backToTopButton.classList.toggle('visible', window.scrollY > 200);
 });
 
-// 検索入力 (デバウンス処理付き)
+// 検索入力 (デバウンス処理 + ★★★ 中止処理を追加 ★★★)
 document.getElementById("search").addEventListener("input", (e) => {
   clearTimeout(searchTimeout); 
   
@@ -249,6 +249,16 @@ document.getElementById("search").addEventListener("input", (e) => {
   const resultsDiv = document.getElementById("results");
 
   searchTimeout = setTimeout(async () => { 
+    // ★★★ 古い検索処理(fetch)があれば中止 ★★★
+    if (abortController) {
+      abortController.abort();
+      console.log("Previous search aborted.");
+    }
+    // ★★★ 新しい中止ボタンを用意 ★★★
+    abortController = new AbortController();
+    const signal = abortController.signal;
+    // ★★★--------------------------★★★
+
     resultsDiv.innerHTML = "";
     popup.style.visibility = 'hidden'; 
     playerContainer.innerHTML = "";
@@ -257,82 +267,105 @@ document.getElementById("search").addEventListener("input", (e) => {
 
     const keywords = query.split(/\s+/).filter(k => k);
     if (keywords.length === 0) return;
+
+    resultsDiv.innerHTML = "<p>検索中...</p>"; // 検索中メッセージ
     
     const results = [];
+    let searchCompleted = true; // 検索が中止されずに完了したかのフラグ
 
-    for (const f of files) {
-      try {
-        const res = await fetch(f.url);
-        if (!res.ok) continue;
-        const text = await res.text();
+    try { // ループ全体をtryで囲む
+        for (const f of files) {
+            try {
+                // ★★★ fetchにsignalを渡す ★★★
+                const res = await fetch(f.url, { signal });
+                if (!res.ok) continue;
+                const text = await res.text();
 
-        const paragraphs = text.split(/(<p>.*?<\/p>)/s).filter(p => p.startsWith('<p>'));
-        
-        paragraphs.forEach((pHTML, index) => {
-          const plainText = pHTML.replace(/<[^>]*>/g, "");
-          if (keywords.every(k => plainText.toLowerCase().includes(k.toLowerCase()))) {
-            const timeMatch = plainText.match(/^\s*(\d{2}:\d{2}:\d{2})/); 
-            if (timeMatch) {
-              results.push({
-                title: f.title,
-                video: f.video,
-                pHTML: pHTML, 
-                timestamp: timeMatch[1], 
-              });
+                const paragraphs = text.split(/(<p>.*?<\/p>)/s).filter(p => p.startsWith('<p>'));
+                
+                paragraphs.forEach((pHTML, index) => {
+                    const plainText = pHTML.replace(/<[^>]*>/g, "");
+                    if (keywords.every(k => plainText.toLowerCase().includes(k.toLowerCase()))) {
+                        const timeMatch = plainText.match(/^\s*(\d{2}:\d{2}:\d{2})/); 
+                        if (timeMatch) {
+                            results.push({
+                                title: f.title,
+                                video: f.video,
+                                pHTML: pHTML, 
+                                timestamp: timeMatch[1], 
+                            });
+                        }
+                    }
+                });
+            } catch (err) {
+                // ★★★ 中止エラーを捕捉 ★★★
+                if (err.name === 'AbortError') {
+                    console.log(`Fetch aborted for ${f.url}`);
+                    searchCompleted = false; // 中止フラグを立てる
+                    break; // ループを抜ける
+                } else {
+                    console.error("読み込み失敗:", f.url, err);
+                }
             }
-          }
-        });
-      } catch (err) {
-        console.error("読み込み失敗:", f.url, err);
-      }
+        } // forループ終了
+
+        // ★★★ 検索が中止されずに完了した場合のみ結果を表示 ★★★
+        if (searchCompleted) {
+            resultsDiv.innerHTML = ""; // "検索中..." を消す
+            if (results.length === 0) {
+                resultsDiv.innerHTML = "<p>一致する結果はありません。</p>";
+            } else {
+                const note = document.createElement("div");
+                note.id = "note";
+                note.innerHTML = `
+                  <strong>結果の見方：</strong><br>
+                  検索したワードを含む部分を一覧で表示します。<br>
+                  一覧の中からクリックすると該当箇所の動画を再生できます。<br>
+                  ※動画に広告が表示されますがYouTube側の仕様であり、収益目的ではありません。
+                `;
+                resultsDiv.appendChild(note);
+
+                results.forEach(r => {
+                  let highlightedHTML = r.pHTML;
+                  for (const k of keywords) {
+                    const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    highlightedHTML = highlightedHTML.replace(new RegExp(`(${escaped})(?![^<]*>)`, "gi"), `<span class="highlight">$1</span>`);
+                  }
+
+                  const div = document.createElement("div");
+                  div.className = "result";
+                  const playIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#e4007e" viewBox="0 0 16 16" style="vertical-align: middle; margin-left: 5px;">
+                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                    <path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445"/>
+                  </svg>`;
+                  div.innerHTML = `<strong>${r.title} ${playIconSVG}</strong><br>${highlightedHTML}`;
+                  
+                  div.addEventListener("click", () => {
+                      const videoId = r.video.split("v=")[1]?.split("&")[0] || r.video.split("/").pop();
+                      const [h, m, s] = r.timestamp.split(":").map(Number);
+                      const seconds = h * 3600 + m * 60 + s;
+                      playVideoAtTime(videoId, seconds);
+                  });
+                  resultsDiv.appendChild(div);
+                });
+            }
+        } else {
+            // 検索が中止された場合、結果エリアを空にする（"検索中..."も消える）
+            resultsDiv.innerHTML = "";
+            console.log("Search aborted. Results not displayed.");
+        }
+
+    } catch (err) { // fetchループの外側のエラーハンドリング (主に予期せぬエラー用)
+        if (err.name !== 'AbortError') { // AbortErrorは予期しているので無視
+             console.error("Search process failed:", err);
+             resultsDiv.innerHTML = "<p>検索中にエラーが発生しました。</p>";
+        }
     }
 
-    if (results.length === 0) {
-      resultsDiv.innerHTML = "<p>一致する結果はありません。</p>";
-      return;
-    }
-
-    const note = document.createElement("div");
-    note.id = "note";
-    note.innerHTML = `
-      <strong>結果の見方：</strong><br>
-      検索結果一覧の中からクリックすると該当する部分の動画を再生できます。<br>
-      ※動画に広告が表示されますがYouTube側の仕様であり、収益目的ではありません。
-    `;
-    resultsDiv.appendChild(note);
-
-    results.forEach(r => {
-      let highlightedHTML = r.pHTML;
-      for (const k of keywords) {
-        const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        highlightedHTML = highlightedHTML.replace(new RegExp(`(${escaped})(?![^<]*>)`, "gi"), `<span class="highlight">$1</span>`);
-      }
-
-      const div = document.createElement("div");
-      div.className = "result";
-      
-      // ★★★ここが今回の修正点！★★★
-      // 絵文字 ▶️ を SVG アイコンに変更し、色を指定
-      const playIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#e4007e" viewBox="0 0 16 16" style="vertical-align: middle; margin-left: 5px;">
-        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-        <path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445"/>
-      </svg>`;
-      div.innerHTML = `<strong>${r.title} ${playIconSVG}</strong><br>${highlightedHTML}`;
-      // ★★★修正点ここまで★★★
-      
-      div.addEventListener("click", () => {
-          const videoId = r.video.split("v=")[1]?.split("&")[0] || r.video.split("/").pop();
-          const [h, m, s] = r.timestamp.split(":").map(Number);
-          const seconds = h * 3600 + m * 60 + s;
-          playVideoAtTime(videoId, seconds);
-      });
-      resultsDiv.appendChild(div);
-    });
-
-  }, 500); // 1秒待つ
+  }, 500); // 0.5秒待つ (必要なら1000などに調整)
 });
 
-// ドラッグイベントリスナー
+// ドラッグイベントリスナー (変更なし)
 dragHandle.addEventListener("touchstart", dragStart, { passive: false });
 document.addEventListener("touchend", dragEnd, { passive: false });
 document.addEventListener("touchmove", drag, { passive: false });
@@ -340,7 +373,7 @@ dragHandle.addEventListener("mousedown", dragStart, { passive: false });
 document.addEventListener("mouseup", dragEnd, { passive: false });
 document.addEventListener("mousemove", drag, { passive: false });
 
-// 閉じるボタン
+// 閉じるボタン (変更なし)
 closePlayerBtn.addEventListener("click", () => {
   popup.style.visibility = 'hidden';
   playerContainer.innerHTML = "";
