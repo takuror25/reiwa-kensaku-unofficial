@@ -40,7 +40,11 @@ const files = [
 
 
 
-    
+{
+    title: "2025-09-22 和歌山県・田辺市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-22-tanabe.html",
+    video: "https://www.youtube.com/watch?v=8eH763VuGTs"
+  },
 
 {
     title: "2025-09-21 大阪府・富田林市 山本太郎とおしゃべり会",
