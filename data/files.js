@@ -36,7 +36,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-10-04 広島県・呉市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-04-kure.html",
+    video: "https://www.youtube.com/watch?v=HBzh2TMTMag"
+  },
 
 {
     title: "2025-10-03 山口県・柳井市 山本太郎とおしゃべり会",
