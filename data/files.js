@@ -36,6 +36,20 @@ const files = [
 
 
 
+
+
+
+
+
+
+
+
+{
+    title: "2025-10-04 岡山県・倉敷市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-04-kurashiki.html",
+    video: "https://www.youtube.com/watch?v=8WkbYKSKxjw"
+  },
+
 {
     title: "2025-10-04 広島県・呉市 山本太郎とおしゃべり会",
     url: "talks/2025-10-04-kure.html",
