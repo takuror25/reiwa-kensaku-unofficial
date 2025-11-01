@@ -38,6 +38,12 @@ const files = [
 
 
 {
+    title: "2025-09-28 福井県・坂井市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-28-sakai.html",
+    video: "https://www.youtube.com/watch?v=cKTDbGaq8j4"
+  },
+
+{
     title: "2025-09-27 石川県・加賀市 山本太郎とおしゃべり会",
     url: "talks/2025-09-27-kaga.html",
     video: "https://www.youtube.com/watch?v=RSjLj9-QA2Q"
