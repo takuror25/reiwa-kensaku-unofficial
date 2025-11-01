@@ -40,7 +40,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-10-05 島根県・出雲市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-05-izumo.html",
+    video: "https://www.youtube.com/watch?v=MNZUK_GHM9I"
+  },
 
 {
     title: "2025-10-05 鳥取県・米子市 山本太郎とおしゃべり会",
