@@ -35,7 +35,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-09-28 福井県・越前市 山本太郎とおしゃべり会",
+    url: "talks/2025-09-28-echizen.html",
+    video: "https://www.youtube.com/watch?v=siRncFrj-Ic"
+  },
 
 {
     title: "2025-09-28 福井県・坂井市 山本太郎とおしゃべり会",
