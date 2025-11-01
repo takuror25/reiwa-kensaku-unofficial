@@ -38,7 +38,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-10-08 熊本県・八代市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-08-yatsushiro.html",
+    video: "https://www.youtube.com/watch?v=R167VfHcgsg"
+  },
 
 {
     title: "2025-10-05 島根県・出雲市 山本太郎とおしゃべり会",
