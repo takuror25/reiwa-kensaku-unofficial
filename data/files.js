@@ -42,7 +42,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-10-05 鳥取県・米子市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-05-yonago.html",
+    video: "https://www.youtube.com/watch?v=r264lak94v4"
+  },
 
 {
     title: "2025-10-04 岡山県・倉敷市 山本太郎とおしゃべり会",
