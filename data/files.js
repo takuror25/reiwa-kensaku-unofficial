@@ -31,9 +31,11 @@ const files = [
     video: "https://www.youtube.com/watch?v=FcUN67LlbGc"
   },
 
-
-
-
+{
+    title: "2025-10-13 宮崎県・延岡市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-13-nobeoka.html",
+    video: "https://www.youtube.com/watch?v=MAYoNGCJrho"
+  },
 
 {
     title: "2025-10-13 宮崎県・都城市 山本太郎とおしゃべり会",
