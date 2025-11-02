@@ -6,7 +6,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-10-26 長野県・松本市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-26-matsumoto.html",
+    video: "https://www.youtube.com/watch?v=elNewl01Mqs"
+  },
 
 {
     title: "2025-10-25 山梨県・甲府市 山本太郎とおしゃべり会",
