@@ -8,7 +8,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-10-25 山梨県・甲府市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-25-kofu.html",
+    video: "https://www.youtube.com/watch?v=Wc1jLyjwGW0"
+  },
 
 {
     title: "2025-10-25 山梨県・甲州市 山本太郎とおしゃべり会",
