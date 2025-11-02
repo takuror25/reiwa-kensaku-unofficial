@@ -35,7 +35,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-10-11 福岡県・太宰府市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-11-dazaifu.html",
+    video: "https://www.youtube.com/watch?v=IMDnS4skpX4"
+  },
 
 {
     title: "2025-10-11 福岡県・福岡市 山本太郎とおしゃべり会",
