@@ -35,7 +35,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-10-13 宮崎県・都城市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-13-miyakonojo.html",
+    video: "https://www.youtube.com/watch?v=jndrXRZ8JJ0"
+  },
 
 {
     title: "2025-10-12 鹿児島県・薩摩川内市 山本太郎とおしゃべり会",
