@@ -5,7 +5,11 @@
 const files = [
 
 
-
+{
+    title: "2025-10-19 静岡県・藤枝市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-19-fujieda.html",
+    video: "https://www.youtube.com/watch?v=crKJeLa752U"
+  },
 
 {
     title: "2025-10-19 静岡県・藤沢市 山本太郎とおしゃべり会",
