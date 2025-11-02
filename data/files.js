@@ -35,6 +35,16 @@ const files = [
 
 
 
+
+
+
+
+{
+    title: "2025-10-12 大分県・玖珠郡 山本太郎とおしゃべり会",
+    url: "talks/2025-10-12-kusugun.html",
+    video: "https://www.youtube.com/watch?v=KuhBA4Tg-GM"
+  },
+    
 {
     title: "2025-10-11 福岡県・太宰府市 山本太郎とおしゃべり会",
     url: "talks/2025-10-11-dazaifu.html",
