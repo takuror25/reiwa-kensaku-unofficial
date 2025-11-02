@@ -37,7 +37,12 @@ const files = [
 
 
 
-
+{
+    title: "2025-10-11 福岡県・福岡市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-11-fukuoka.html",
+    video: "https://www.youtube.com/watch?v=QJi48UOUv20"
+  },
+    
 {
     title: "2025-10-10 長崎県・大村市 山本太郎とおしゃべり会",
     url: "talks/2025-10-10-oomura.html",
