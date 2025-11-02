@@ -4,7 +4,11 @@
 
 const files = [
 
-
+{
+    title: "2025-10-26 長野県・長野市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-26-nagano.html",
+    video: "https://www.youtube.com/watch?v=XoUjLEcnElg"
+  },
 
 {
     title: "2025-10-26 長野県・松本市 山本太郎とおしゃべり会",
