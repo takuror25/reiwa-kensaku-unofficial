@@ -37,7 +37,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-10-12 鹿児島県・薩摩川内市 山本太郎とおしゃべり会",
+    url: "talks/2025-10-12-satsumasendai.html",
+    video: "https://www.youtube.com/watch?v=uOuXQIc9FLo"
+  },
 
 {
     title: "2025-10-12 大分県・玖珠郡 山本太郎とおしゃべり会",
