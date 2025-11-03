@@ -13,6 +13,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # ★★★ ここが今回の修正点！ ★★★
+    # ロボットに書き込み権限を与える
+    permissions:
+      contents: write
+    # ★★★ 修正点ここまで ★★★
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
