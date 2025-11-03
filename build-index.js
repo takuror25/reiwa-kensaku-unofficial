@@ -7,10 +7,17 @@ const path = require('path');
 console.log("Starting index build...");
 
 // 1. data/files.js からファイルリストを読み込む
-// (evalは通常非推奨ですが、管理されたリポジトリ内のJSファイルを読む目的なのでOK)
 let files;
 try {
   const filesJSContent = fs.readFileSync(path.join(__dirname, 'data/files.js'), 'utf8');
+  
+  // ★★★ ここからが修正点 ★★★
+  // data/files.js が空、または正しく読み込めなかった場合のエラー処理
+  if (!filesJSContent || filesJSContent.trim() === '') {
+    throw new Error("data/files.js is empty or could not be read properly.");
+  }
+  // ★★★ 修正点ここまで ★★★
+
   // `const files = ` と `];` を取り除き、JSONとして扱えるようにする
   // (コメント `//初回` なども考慮して末尾をクリーンアップ)
   const jsonString = filesJSContent
@@ -19,6 +26,11 @@ try {
   
   // evalの代わりに、より安全な Functionコンストラクタでオブジェクトを取得
   files = new Function(`return ${jsonString}`)();
+  
+  if (!files || !Array.isArray(files)) {
+      throw new Error("Failed to parse files array from data/files.js.");
+  }
+  
   console.log(`Found ${files.length} files to index in data/files.js`);
 } catch (err) {
   console.error("Error reading or parsing data/files.js:", err);
