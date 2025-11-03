@@ -4,6 +4,15 @@
 
 const files = [
 
+
+
+
+{
+    title: "2025-11-01 兵庫県・加西市 山本太郎とおしゃべり会",
+    url: "talks/2025-11-01-kasai.html",
+    video: "https://www.youtube.com/watch?v=Nbh2lJ575SI"
+  },
+
 {
     title: "2025-10-26 長野県・長野市 山本太郎とおしゃべり会",
     url: "talks/2025-10-26-nagano.html",
