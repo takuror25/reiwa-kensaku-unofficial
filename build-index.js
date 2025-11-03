@@ -9,22 +9,26 @@ console.log("Starting index build...");
 // 1. data/files.js からファイルリストを読み込む
 let files;
 try {
-  const filesJSContent = fs.readFileSync(path.join(__dirname, 'data/files.js'), 'utf8');
+  const filesJSPath = path.join(__dirname, 'data/files.js');
+  console.log(`Attempting to read: ${filesJSPath}`);
+
+  if (!fs.existsSync(filesJSPath)) {
+      throw new Error("data/files.js file not found at path.");
+  }
+
+  const filesJSContent = fs.readFileSync(filesJSPath, 'utf8');
   
-  // ★★★ ここからが修正点 ★★★
+  // ★★★ これが安全装置です ★★★
   // data/files.js が空、または正しく読み込めなかった場合のエラー処理
   if (!filesJSContent || filesJSContent.trim() === '') {
     throw new Error("data/files.js is empty or could not be read properly.");
   }
-  // ★★★ 修正点ここまで ★★★
+  // ★★★ 安全装置ここまで ★★★
 
-  // `const files = ` と `];` を取り除き、JSONとして扱えるようにする
-  // (コメント `//初回` なども考慮して末尾をクリーンアップ)
   const jsonString = filesJSContent
     .replace('const files = [', '[')
     .replace(/];\s*(\/\/.*)?$/s, ']');
   
-  // evalの代わりに、より安全な Functionコンストラクタでオブジェクトを取得
   files = new Function(`return ${jsonString}`)();
   
   if (!files || !Array.isArray(files)) {
@@ -61,7 +65,7 @@ for (const f of files) {
           video: f.video,
           pHTML: pHTML,
           timestamp: timeMatch[1],
-          plainText: plainText // 検索用のプレーンテキスト
+          plainText: plainText
         });
       }
     });
