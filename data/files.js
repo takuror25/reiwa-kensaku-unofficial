@@ -7,6 +7,14 @@ const files = [
 
 
 
+
+
+{
+    title: "2025-11-01 兵庫県・芦屋市 山本太郎とおしゃべり会",
+    url: "talks/2025-11-01-ashiya.html",
+    video: "https://www.youtube.com/watch?v=Gs6_RXteFpU"
+  },
+    
 {
     title: "2025-11-01 兵庫県・加西市 山本太郎とおしゃべり会",
     url: "talks/2025-11-01-kasai.html",
