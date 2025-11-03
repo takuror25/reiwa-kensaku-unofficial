@@ -18,18 +18,25 @@ try {
 
   const filesJSContent = fs.readFileSync(filesJSPath, 'utf8');
   
-  // ★★★ これが安全装置です ★★★
-  // data/files.js が空、または正しく読み込めなかった場合のエラー処理
   if (!filesJSContent || filesJSContent.trim() === '') {
     throw new Error("data/files.js is empty or could not be read properly.");
   }
-  // ★★★ 安全装置ここまで ★★★
-
-  const jsonString = filesJSContent
-    .replace('const files = [', '[')
-    .replace(/];\s*(\/\/.*)?$/s, ']');
   
-  files = new Function(`return ${jsonString}`)();
+  // ★★★ ここからが修正点です ★★★
+  // 'const files = [' という行を探す
+  const startIndex = filesJSContent.indexOf('const files = [');
+  // 最後の '];' を探す
+  const endIndex = filesJSContent.lastIndexOf('];');
+
+  if (startIndex === -1 || endIndex === -1) {
+    throw new Error("Could not find 'const files = [' or '];' in data/files.js.");
+  }
+  
+  // 'const files = ' の直後（'['）から、']' までを抜き出す
+  const arrayString = filesJSContent.substring(startIndex + 'const files = '.length, endIndex + 1);
+  // ★★★ 修正点ここまで ★★★
+  
+  files = new Function(`return ${arrayString}`)();
   
   if (!files || !Array.isArray(files)) {
       throw new Error("Failed to parse files array from data/files.js.");
