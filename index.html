@@ -247,12 +247,8 @@ document.getElementById("search").addEventListener("input", (e) => {
     
     // 読み込んだ索引本(searchIndex)から検索
     const results = searchIndex.filter(item => {
-      // ★★★ここが今回の修正点！★★★
-      // 「タイトル」と「本文」を連結して、その中を検索
       const combinedText = (item.title + ' ' + item.plainText).toLowerCase();
-      // 連結したテキストに、すべてのキーワードが含まれているかチェック
       return keywords.every(k => combinedText.includes(k));
-      // ★★★修正点ここまで★★★
     });
 
     if (results.length === 0) {
@@ -284,15 +280,12 @@ document.getElementById("search").addEventListener("input", (e) => {
         <path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445"/>
       </svg>`;
       
-      // ★★★ここも修正点！★★★
-      // タイトルもハイライト対象にする
       let highlightedTitle = r.title;
       for (const k of keywords) {
         const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         highlightedTitle = highlightedTitle.replace(new RegExp(`(${escaped})`, "gi"), `<span class="highlight">$1</span>`);
       }
       div.innerHTML = `<strong>${highlightedTitle} ${playIconSVG}</strong><br>${highlightedHTML}`;
-      // ★★★修正点ここまで★★★
       
       div.addEventListener("click", () => {
           const videoId = r.video.split("v=")[1]?.split("&")[0] || r.video.split("/").pop();
