@@ -7,6 +7,7 @@ on:
     paths:
       - 'talks/**' # talksフォルダ内が変更されたら実行
       - 'data/files.js' # files.jsが変更されたら実行
+      - '.github/workflows/build-index.yml' # このファイル自身が変更されても実行
   workflow_dispatch: # 手動でも実行できるようにする
 
 jobs:
