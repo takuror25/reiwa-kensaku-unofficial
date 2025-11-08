@@ -8,7 +8,12 @@ const files = [
 
 
 
-    
+{
+    title: "2025-11-02 大阪府・交野市 山本太郎とおしゃべり会",
+    url: "talks/2025-11-02-katano.html",
+    video: "https://www.youtube.com/watch?v=tZjOGeL2rHI"
+  },
+
 {
     title: "2025-11-01 兵庫県・芦屋市 山本太郎とおしゃべり会",
     url: "talks/2025-11-01-ashiya.html",
