@@ -7,7 +7,7 @@ const files = [
 
 
 
-    {,
+ {
     title: "2025-11-08 徳島県・阿波市 山本太郎とおしゃべり会",
     url: "talks/2025-11-08-awa.html",
     video: "https://www.youtube.com/watch?v=rM0lwqfvM94"
