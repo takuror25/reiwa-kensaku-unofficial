@@ -5,7 +5,11 @@
 const files = [
 
 
-
+{
+    title: "2025-11-08 香川県・丸亀市 山本太郎とおしゃべり会",
+    url: "talks/2025-11-08-marugame.html",
+    video: "https://www.youtube.com/watch?v=9k9OH2Apu90"
+  },
 
  {
     title: "2025-11-08 徳島県・阿波市 山本太郎とおしゃべり会",
