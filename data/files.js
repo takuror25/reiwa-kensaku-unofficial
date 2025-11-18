@@ -11,6 +11,12 @@ const files = [
     url: "talks/2025-11-09-kouchi.html",
     video: "https://www.youtube.com/watch?v=4wD1sZ7B300"
   },
+
+{
+    title: "2025-11-09 愛媛県・今治市 山本太郎とおしゃべり会",
+    url: "talks/2025-11-09-imabari.html",
+    video: "https://www.youtube.com/watch?v=Nx1Lb_Qou40"
+  },
     
 {
     title: "2025-11-08 香川県・丸亀市 山本太郎とおしゃべり会",
