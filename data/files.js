@@ -6,6 +6,14 @@ const files = [
 
 
 
+
+    
+ {
+    title: "2025-11-15 新潟県・新潟市 山本太郎とおしゃべり会",
+    url: "talks/2025-11-15-nigata.html",
+    video: "https://www.youtube.com/watch?v=C3IoBhxp2ik"
+   }, 
+
 {
     title: "2025-11-09 高知県・高知市 山本太郎とおしゃべり会",
     url: "talks/2025-11-09-kouchi.html",
