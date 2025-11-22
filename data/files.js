@@ -12,7 +12,11 @@ const files = [
     video: "https://www.youtube.com/watch?v=auY_OMldj8w"
    }, 
 
-
+ {
+    title: "2025-11-16 長野県・佐久市 山本太郎とおしゃべり会",
+    url: "talks/2025-11-16-saku.html",
+    video: "https://www.youtube.com/watch?v=TscnesB572A"
+   }, 
 
  {
     title: "2025-11-16 新潟県・長岡市 山本太郎とおしゃべり会",
