@@ -13,6 +13,13 @@ const files = [
    }, 
 
 
+
+ {
+    title: "2025-11-16 新潟県・長岡市 山本太郎とおしゃべり会",
+    url: "talks/2025-11-16-nagaoka.html",
+    video: "https://www.youtube.com/watch?v=vNJWEhopH6c"
+   }, 
+
  {
     title: "2025-11-15 新潟県・三条市 山本太郎とおしゃべり会",
     url: "talks/2025-11-15-sanjo.html",
