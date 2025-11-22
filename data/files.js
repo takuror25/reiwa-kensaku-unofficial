@@ -11,6 +11,13 @@ const files = [
     url: "talks/2025-11-22-ginowan.html",
     video: "https://www.youtube.com/watch?v=auY_OMldj8w"
    }, 
+
+
+ {
+    title: "2025-11-15 新潟県・三条市 山本太郎とおしゃべり会",
+    url: "talks/2025-11-15-sanjo.html",
+    video: "https://www.youtube.com/watch?v=L8BoU2e63ZQ"
+   }, 
     
  {
     title: "2025-11-15 新潟県・新潟市 山本太郎とおしゃべり会",
