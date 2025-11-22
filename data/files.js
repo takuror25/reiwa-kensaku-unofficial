@@ -6,6 +6,13 @@ const files = [
 
 
 
+
+{
+    title: "2025-11-22 沖縄県・南風原市 山本太郎とおしゃべり会",
+    url: "talks/2025-11-22-haebaru.html",
+    video: "https://www.youtube.com/watch?v=nkU7SQUFDpM"
+   }, 
+
 {
     title: "2025-11-22 沖縄県・宜野湾市 山本太郎とおしゃべり会",
     url: "talks/2025-11-22-ginowan.html",
