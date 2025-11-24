@@ -36,6 +36,16 @@ const files = [
     video: "https://www.youtube.com/watch?v=auY_OMldj8w"
    }, 
 
+
+
+{
+    title: "2025-11-20（木）衆議院 憲法審査会 大石あきこ",
+    url: "talks/2025-11-20-oishi.html",
+    video: "https://www.youtube.com/watch?v=125_UPcyOZM"
+   }, 
+
+
+    
  {
     title: "2025-11-16 長野県・佐久市 山本太郎とおしゃべり会",
     url: "talks/2025-11-16-saku.html",
