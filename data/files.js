@@ -38,7 +38,7 @@ const files = [
 
 {
     title: "2025-11-20（木）参議院 財政金融委員会 大島九州男",
-    url: "talks/2025-11-20-oshima.html,
+    url: "talks/2025-11-20-oshima.html",
     video: "https://www.youtube.com/watch?v=yFWNgP7iS9A"
    }, 
 
