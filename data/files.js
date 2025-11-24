@@ -38,6 +38,15 @@ const files = [
 
 
 
+
+
+
+{
+    title: "2025-11-20（木）衆議院 総務委員会 山川ひとし",
+    url: "talks/2025-11-20-yamakawa.html",
+    video: "https://www.youtube.com/watch?v=NEwVK31CyMM"
+   }, 
+
 {
     title: "2025-11-20（木）衆議院 憲法審査会 大石あきこ",
     url: "talks/2025-11-20-oishi.html",
