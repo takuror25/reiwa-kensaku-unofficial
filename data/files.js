@@ -37,7 +37,11 @@ const files = [
    }, 
 
 
-
+{
+    title: "2025-11-20（木）参議院 内閣委員会 伊勢崎賢治",
+    url: "talks/2025-11-20-isezaki.html",
+    video: "https://www.youtube.com/watch?v=yFWNgP7iS9A"
+   }, 
 
 {
     title: "2025-11-20（木）参議院 国土交通委員会 木村英子",
