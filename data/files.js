@@ -39,7 +39,11 @@ const files = [
 
 
 
-
+{
+    title: "2025-11-20（木）参議院 国土交通委員会 木村英子",
+    url: "talks/2025-11-20-kimura.html",
+    video: "https://www.youtube.com/watch?v=fgD1-a87W-A"
+   }, 
 
 {
     title: "2025-11-20（木）衆議院 総務委員会 山川ひとし",
