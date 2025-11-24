@@ -27,7 +27,7 @@ const files = [
 {
     title: "2025-11-22 沖縄県・南風原市 山本太郎とおしゃべり会",
     url: "talks/2025-11-22-haebaru.html",
-    video: "https://www.youtube.com/watch?v=nkU7SQUFDpM"
+    video: "https://www.youtube.com/watch?v=L21k1hJptPQ"
    }, 
 
 {
@@ -36,6 +36,11 @@ const files = [
     video: "https://www.youtube.com/watch?v=auY_OMldj8w"
    }, 
 
+{
+    title: "2025-11-20（木）参議院 財政金融委員会 大島九州男",
+    url: "talks/2025-11-20-oshima.html,
+    video: "https://www.youtube.com/watch?v=yFWNgP7iS9A"
+   }, 
 
 {
     title: "2025-11-20（木）参議院 内閣委員会 伊勢崎賢治",
